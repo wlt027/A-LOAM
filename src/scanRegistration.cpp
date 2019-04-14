@@ -136,7 +136,6 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
     pcl::removeNaNFromPointCloud(laserCloudIn, laserCloudIn, indices);
     removeClosedPointCloud(laserCloudIn, laserCloudIn, MINIMUM_RANGE);
 
-
     int cloudSize = laserCloudIn.points.size();
     float startOri = -atan2(laserCloudIn.points[0].y, laserCloudIn.points[0].x);
     float endOri = -atan2(laserCloudIn.points[cloudSize - 1].y,
@@ -163,6 +162,13 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         point.y = laserCloudIn.points[i].y;
         point.z = laserCloudIn.points[i].z;
 
+        if(N_SCANS == 40)
+        {
+            point.x = -laserCloudIn.points[i].y;
+            point.y = laserCloudIn.points[i].x;
+            point.z = laserCloudIn.points[i].z;
+        }
+
         float angle = atan(point.z / sqrt(point.x * point.x + point.y * point.y)) * 180 / M_PI;
         int scanID = 0;
 
@@ -182,6 +188,21 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
             {
                 count--;
                 continue;
+            }
+        }
+        else if (N_SCANS == 40)
+        {
+            // pandar 40 vertical angle is un-uniform
+            if(angle > -6 && angle < 2)
+            {
+                scanID = int((angle + 6) * 0.33 + 0.5) + 10;
+            } else if(angle <= -6)
+            {
+                scanID = int((angle + 16) * 1 + 0.5);
+            }
+            else
+            {
+                scanID = int((angle - 2) * 1 + 0.5) + 35;
             }
         }
         else if (N_SCANS == 64)
@@ -469,9 +490,9 @@ int main(int argc, char **argv)
 
     printf("scan line number %d \n", N_SCANS);
 
-    if(N_SCANS != 16 && N_SCANS != 32 && N_SCANS != 64)
+    if(N_SCANS != 16 && N_SCANS != 32 && N_SCANS != 64 && N_SCANS != 40)
     {
-        printf("only support velodyne with 16, 32 or 64 scan line!");
+        printf("only support velodyne with 16, 32 or 64 scan line,robosense16, Hesai Pandar 40!");
         return 0;
     }
 
