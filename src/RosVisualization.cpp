@@ -181,7 +181,7 @@ namespace vis {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             if (pangolin::Pushed(buttonViewFPS)) {
-                s_cam.SetModelViewMatrix(pangolin::ModelViewLookAt(0, 1, 0, 0, 0, 0, 0, 0, 1));
+                s_cam.SetModelViewMatrix(pangolin::ModelViewLookAt(-5, 0, 5, 0, 0, 0, 1, 0, 1));
             }
 
             if (pangolin::Pushed(buttonRestart)) {
@@ -203,7 +203,6 @@ namespace vis {
 
             // draw current axis
             drawAxis(Twi);
-
 
             if(menuViewIntensity)
             {

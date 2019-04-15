@@ -63,6 +63,7 @@ const int systemDelay = 0;
 int systemInitCount = 0;
 bool systemInited = false;
 int N_SCANS = 0;
+std::string LIDAR_TOPIC = "/velodyne_points";
 float cloudCurvature[400000];
 int cloudSortInd[400000];
 int cloudNeighborPicked[400000];
@@ -142,6 +143,14 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
                           laserCloudIn.points[cloudSize - 1].x) +
                    2 * M_PI;
 
+    if(N_SCANS == 40)
+    {
+        startOri = -atan2(laserCloudIn.points[0].x, -laserCloudIn.points[0].y);
+        endOri = -atan2(laserCloudIn.points[cloudSize - 1].x,
+                              -laserCloudIn.points[cloudSize - 1].y) +
+                       2 * M_PI;
+    }
+
     if (endOri - startOri > 3 * M_PI)
     {
         endOri -= 2 * M_PI;
@@ -203,6 +212,12 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
             else
             {
                 scanID = int((angle - 2) * 1 + 0.5) + 35;
+            }
+
+            if (scanID > (N_SCANS - 1) || scanID < 0)
+            {
+                count--;
+                continue;
             }
         }
         else if (N_SCANS == 64)
@@ -488,7 +503,10 @@ int main(int argc, char **argv)
 
     nh.param<double>("minimum_range", MINIMUM_RANGE, 0.1);
 
+    nh.getParam("lidar_topic", LIDAR_TOPIC);
+
     printf("scan line number %d \n", N_SCANS);
+    printf("lidar topic:%s \n",LIDAR_TOPIC.data());
 
     if(N_SCANS != 16 && N_SCANS != 32 && N_SCANS != 64 && N_SCANS != 40)
     {
@@ -496,7 +514,7 @@ int main(int argc, char **argv)
         return 0;
     }
 
-    ros::Subscriber subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>("/velodyne_points", 100, laserCloudHandler);
+    ros::Subscriber subLaserCloud = nh.subscribe<sensor_msgs::PointCloud2>(LIDAR_TOPIC, 100, laserCloudHandler);
 
     pubLaserCloud = nh.advertise<sensor_msgs::PointCloud2>("/velodyne_cloud_2", 100);
 
