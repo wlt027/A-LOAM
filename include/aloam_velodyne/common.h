@@ -40,7 +40,44 @@
 
 #include <pcl/point_types.h>
 
+//! Euclidean LiDAR coordinate, including intensity, ring number, and timestamp.
+struct PointXYZIRTRaw {
+    PCL_ADD_POINT4D;                   ///< quad-word XYZ
+    uint8_t intensity;                 ///< laser intensity reading
+    uint8_t ring;                      ///< point scan line id
+    union {
+        uint64_t timestamp;              ///< timestamp in nanosecond
+        uint32_t tm[2];                  ///< timestamp storage
+    };
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW      // ensure proper alignment
+} EIGEN_ALIGN16;
+
+//! Euclidean LiDAR coordinate, including intensity, and timestamp.
+struct PointXYZIT {
+    PCL_ADD_POINT4D;                   ///< quad-word XYZ
+    uint8_t intensity;                 ///< laser intensity reading
+    double time;
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW      // ensure proper alignment
+} EIGEN_ALIGN16;
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIRTRaw,
+                                  (float, x, x)
+                                          (float, y, y)
+                                          (float, z, z)
+                                          (uint8_t, intensity, intensity)
+                                          (uint8_t, ring, ring)
+                                          (uint32_t, tm[0], tm0)
+                                          (uint32_t, tm[1], tm1)) // PCL do not support uint64, see https://github.com/PointCloudLibrary/pcl/issues/1153
+
+POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIT,
+                                  (float, x, x)
+                                          (float, y, y)
+                                          (float, z, z)
+                                          (uint8_t, intensity, intensity)
+                                          (double, time, time))
+
 typedef pcl::PointXYZI PointType;
+typedef PointXYZIT PointType2;
 
 inline double rad2deg(double radians)
 {
