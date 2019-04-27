@@ -46,6 +46,7 @@
 #include <thread>
 #include "aloam_velodyne/common.h"
 #include "aloam_velodyne/tic_toc.h"
+#include "aloam_velodyne/voxel_grid_keep_property.h"
 #include <nav_msgs/Odometry.h>
 #include <opencv/cv.h>
 #include <pcl_conversions/pcl_conversions.h>
@@ -579,6 +580,68 @@ std::vector<LoamFeatures> getMeasurementsDual()
             laser1Buf.pop();
         }
 
+//        {
+//            // output
+//            std::string strOut = "/media/wlt/DATA/data/zhkj/190425/";
+//            double scanTime = time;
+//
+//            {
+//                std::string strCorner = strOut + std::to_string(scanTime) + "-corner.txt";
+//
+//                FILE* pFile = fopen(strCorner.data(),"w");
+//
+//                for(int i = 0; i< corners.size();i++)
+//                {
+//                    PointType pt = corners[i];
+//
+//                    fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+//                }
+//                fclose(pFile);
+//            }
+//
+//            {
+//                std::string strCorner = strOut + std::to_string(scanTime) + "-cornerLess.txt";
+//
+//                FILE* pFile = fopen(strCorner.data(),"w");
+//
+//                for(int i = 0; i< lessCorners.size();i++)
+//                {
+//                    PointType pt = lessCorners[i];
+//
+//                    fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+//                }
+//                fclose(pFile);
+//            }
+//
+//            {
+//                std::string strCorner = strOut + std::to_string(scanTime) + "-surfel.txt";
+//
+//                FILE* pFile = fopen(strCorner.data(),"w");
+//
+//                for(int i = 0; i< surfels.size();i++)
+//                {
+//                    PointType pt = surfels[i];
+//
+//                    fprintf(pFile,"%%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+//                }
+//                fclose(pFile);
+//            }
+//
+//            {
+//                std::string strCorner = strOut + std::to_string(scanTime) + "-surfelLess.txt";
+//
+//                FILE* pFile = fopen(strCorner.data(),"w");
+//
+//                for(int i = 0; i< lessSurfels.size();i++)
+//                {
+//                    PointType pt = lessSurfels[i];
+//
+//                    fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+//                }
+//                fclose(pFile);
+//            }
+//
+//        }
         measurements.emplace_back(std::make_tuple(time, fulllaser,corners,surfels,lessCorners,lessSurfels));
     }
     return measurements;
@@ -968,7 +1031,7 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         }
 
         pcl::PointCloud<PointType2> surfPointsLessFlatScanDS;
-        pcl::VoxelGrid<PointType2> downSizeFilter;
+        pcl::VoxelGridKeepFields<PointType2> downSizeFilter;
         downSizeFilter.setInputCloud(surfPointsLessFlatScan);
         downSizeFilter.setLeafSize(0.2, 0.2, 0.2);
         downSizeFilter.filter(surfPointsLessFlatScanDS);
