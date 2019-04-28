@@ -67,7 +67,7 @@ using std::cos;
 using std::sin;
 
 const double scanPeriod = 0.1;
-
+constexpr double NEARBY_SCAN = 2.5;
 const int systemDelay = 0; 
 int systemInitCount = 0;
 bool systemInited = false;
@@ -566,12 +566,13 @@ std::vector<LoamFeatures> getMeasurementsDual()
         // get laser1 measurement
         while (std::get<0>(laser1Buf.front()) < time)
         {
-            pcl::PointCloud<PointType> tmp_corners,tmp_surfels,tmp_lessCorners,tmp_lessSurfels;
+            pcl::PointCloud<PointType> tmp_full,tmp_corners,tmp_surfels,tmp_lessCorners,tmp_lessSurfels;
+            pcl::copyPointCloud(std::get<1>(laser1Buf.front()),tmp_full);
             pcl::copyPointCloud(std::get<2>(laser1Buf.front()),tmp_corners);
             pcl::copyPointCloud(std::get<3>(laser1Buf.front()),tmp_surfels);
             pcl::copyPointCloud(std::get<4>(laser1Buf.front()),tmp_lessCorners);
             pcl::copyPointCloud(std::get<5>(laser1Buf.front()),tmp_lessSurfels);
-
+            fulllaser += tmp_full;
             corners += tmp_corners;
             surfels += tmp_surfels;
             lessCorners += tmp_lessCorners;
@@ -580,9 +581,9 @@ std::vector<LoamFeatures> getMeasurementsDual()
             laser1Buf.pop();
         }
 
-//        {
-//            // output
-//            std::string strOut = "/media/wlt/DATA/data/zhkj/190425/";
+        {
+            // output
+//            std::string strOut = "/home/wlt-zh/dataset/190425/";
 //            double scanTime = time;
 //
 //            {
@@ -622,7 +623,7 @@ std::vector<LoamFeatures> getMeasurementsDual()
 //                {
 //                    PointType pt = surfels[i];
 //
-//                    fprintf(pFile,"%%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+//                    fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
 //                }
 //                fclose(pFile);
 //            }
@@ -640,8 +641,7 @@ std::vector<LoamFeatures> getMeasurementsDual()
 //                }
 //                fclose(pFile);
 //            }
-//
-//        }
+        }
         measurements.emplace_back(std::make_tuple(time, fulllaser,corners,surfels,lessCorners,lessSurfels));
     }
     return measurements;
@@ -859,7 +859,7 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         }
 
         float relTime = (ori - startOri) / (endOri - startOri);
-        point.intensity = scanID + scanPeriod * relTime;
+        point.intensity = N_SCANS0 + NEARBY_SCAN + 1 + scanID + scanPeriod * relTime;
 
         Eigen::Vector3f coord_l(point.x,point.y,point.z);
         Eigen::Vector3f coord_b = QBL1*coord_l + PBL1;
@@ -1047,7 +1047,7 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         int m_binCount = 10;
         double m_binTimestep = scanPeriod / (float) m_binCount;
 
-        pcl::PointCloud<PointType> fulllaser;
+        std::vector<pcl::PointCloud<PointType>> fullLaserBins;
         std::vector<pcl::PointCloud<PointType>> vecCornersBins;
         std::vector<pcl::PointCloud<PointType>> vecSurfelsBins;
         std::vector<pcl::PointCloud<PointType>> vecLessCornersBins;
@@ -1056,13 +1056,45 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         for(int i = 0; i< m_binCount;i++)
         {
             pcl::PointCloud<PointType> pcd0;
-            vecCornersBins.push_back(pcd0);
+            fullLaserBins.push_back(pcd0);
             pcl::PointCloud<PointType> pcd1;
-            vecSurfelsBins.push_back(pcd1);
+            vecCornersBins.push_back(pcd1);
             pcl::PointCloud<PointType> pcd2;
-            vecLessCornersBins.push_back(pcd2);
+            vecSurfelsBins.push_back(pcd2);
             pcl::PointCloud<PointType> pcd3;
-            vecLessSufelsBins.push_back(pcd3);
+            vecLessCornersBins.push_back(pcd3);
+            pcl::PointCloud<PointType> pcd4;
+            vecLessSufelsBins.push_back(pcd4);
+        }
+
+        for (int idx = 0; idx < laserCloud->size(); idx++) {
+            PointType2 pt = laserCloud->points[idx];
+
+            double pt_time = pt.time;
+
+            if (scanTime - pt_time < 0) {
+                printf("time exception: %lf\n", pt_time);
+            }
+            int nID = (scanTime - pt_time) / m_binTimestep;
+            nID = m_binCount - 1 - nID;
+
+            if (nID == -1) {
+                nID = 0;
+            }
+            if (nID < 0 || nID > m_binCount - 1) {
+                printf("id exception: %d\n", nID);
+                printf("info: %lf,%lf,%lf\n", scanTime, pt_time, m_binTimestep);
+                continue;
+            }
+
+            if (pcl_isnan(pt.x) || pcl_isnan(pt.y) || pcl_isnan(pt.z))
+                continue;
+            PointType p;
+            p.x = pt.x;
+            p.y = pt.y;
+            p.z = pt.z;
+            p.intensity = pt.intensity;
+            fullLaserBins[nID].push_back(p);
         }
 
         for (int idx = 0; idx < cornerPointsSharp.size(); idx++) {
@@ -1091,6 +1123,7 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
             p.x = pt.x;
             p.y = pt.y;
             p.z = pt.z;
+            p.intensity = pt.intensity;
             vecCornersBins[nID].push_back(p);
         }
 
@@ -1121,6 +1154,7 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
             p.x = pt.x;
             p.y = pt.y;
             p.z = pt.z;
+            p.intensity = pt.intensity;
 
             vecLessCornersBins[nID].push_back(p);
         }
@@ -1152,8 +1186,9 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
             p.x = pt.x;
             p.y = pt.y;
             p.z = pt.z;
+            p.intensity = pt.intensity;
 
-            vecLessCornersBins[nID].push_back(p);
+            vecSurfelsBins[nID].push_back(p);
         }
 
         for (int idx = 0; idx < surfPointsLessFlat.size(); idx++) {
@@ -1183,20 +1218,22 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
             p.x = pt.x;
             p.y = pt.y;
             p.z = pt.z;
+            p.intensity = pt.intensity;
 
             vecLessSufelsBins[nID].push_back(p);
         }
 
         for(int i = 0; i< m_binCount;i++)
         {
-            pcl::PointCloud<PointType> pcd0 = vecCornersBins[i];
-            pcl::PointCloud<PointType> pcd1 = vecSurfelsBins[i];
-            pcl::PointCloud<PointType> pcd2 = vecLessCornersBins[i];
-            pcl::PointCloud<PointType> pcd3 = vecLessSufelsBins[i];
+            pcl::PointCloud<PointType>& pcd = fullLaserBins[i];
+            pcl::PointCloud<PointType>& pcd0 = vecCornersBins[i];
+            pcl::PointCloud<PointType>& pcd1 = vecSurfelsBins[i];
+            pcl::PointCloud<PointType>& pcd2 = vecLessCornersBins[i];
+            pcl::PointCloud<PointType>& pcd3 = vecLessSufelsBins[i];
             double binTime = scanTime - (m_binCount - 1 - i)*m_binTimestep;
 
             m_buf.lock();
-            laser1Buf.push(std::make_tuple(binTime,fulllaser,pcd0,pcd1,pcd2,pcd3));
+            laser1Buf.push(std::make_tuple(binTime,pcd,pcd0,pcd1,pcd2,pcd3));
             m_buf.unlock();
             con.notify_one();
         }

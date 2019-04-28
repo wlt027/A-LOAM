@@ -55,7 +55,7 @@ struct PointXYZIRTRaw {
 //! Euclidean LiDAR coordinate, including intensity, and timestamp.
 struct PointXYZIT {
     PCL_ADD_POINT4D;                   ///< quad-word XYZ
-    uint8_t intensity;                 ///< laser intensity reading
+    float intensity;                  ///< laser intensity reading
     double time;
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW      // ensure proper alignment
 } EIGEN_ALIGN16;
@@ -73,7 +73,7 @@ POINT_CLOUD_REGISTER_POINT_STRUCT(PointXYZIT,
                                   (float, x, x)
                                           (float, y, y)
                                           (float, z, z)
-                                          (uint8_t, intensity, intensity)
+                                          (float, intensity, intensity)
                                           (double, time, time))
 
 typedef pcl::PointXYZI PointType;
