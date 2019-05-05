@@ -18,12 +18,12 @@
     <param name="lidar0_rz" type="double" value="0" />
     <param name="scan0_line" type="int" value="16" />
     <param name="lidar1_topic" type="string" value="/ns1/velodyne_points" />
-    <param name="lidar1_x" type="double" value="-0.2251" />
-    <param name="lidar1_y" type="double" value="0" />
-    <param name="lidar1_z" type="double" value="-0.1258" />
-    <param name="lidar1_rx" type="double" value="0" />
-    <param name="lidar1_ry" type="double" value="-80" />
-    <param name="lidar1_rz" type="double" value="0" />
+    <param name="lidar1_x" type="double" value="-0.237223" />
+    <param name="lidar1_y" type="double" value="-0.012805" />
+    <param name="lidar1_z" type="double" value="-0.122945" />
+    <param name="lidar1_rx" type="double" value="3.740153" />
+    <param name="lidar1_ry" type="double" value="-79.65381" />
+    <param name="lidar1_rz" type="double" value="-2.225454" />
     <param name="scan1_line" type="int" value="16" />
 
     <param name="mapping_line_resolution" type="double" value="0.2"/>
