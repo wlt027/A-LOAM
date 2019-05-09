@@ -23,6 +23,7 @@
 #include <vector>
 #include <cv_bridge/cv_bridge.h>
 #include <opencv2/core/core.hpp>
+#include <aloam_velodyne/color.h>
 
 using namespace std;
 
@@ -172,6 +173,8 @@ namespace vis {
         std::vector<std::pair<double,traj_point>> mTraj;
 
         std::string strOut;
+
+        ColorRamp ramp;
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };

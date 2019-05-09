@@ -27,6 +27,7 @@ namespace vis {
 
     RosVisualization::RosVisualization()
     :required_stop_(false), is_finished_(false),_laserCloudFullRes(new pcl::PointCloud<pcl::PointXYZI>()),
+     ramp(COLORARGB(255,0,0,180),COLORARGB(255,180,0,0),4),
      _laserCloudSurroundDS(new pcl::PointCloud<pcl::PointXYZI>()){
 
         m_bShowIntensity = true;
@@ -43,6 +44,29 @@ namespace vis {
         strOut = "";
 //        P_B_C = Eigen::Vector3d(0,0,0);
 //        R_B_C.setIdentity();
+
+//        u32 beginColor = ramp.GetBeginColor();
+//        u32 endColor = ramp.GetEndColor();
+//
+//        float height = 4;
+//        if (height < 0.5) {
+//            u8 r = ((beginColor >> 16) & 0xff);
+//            u8 g = ((beginColor >> 8) & 0xff);
+//            u8 b = (beginColor & 0xff);
+//        } else if (height > 50) {
+//            u8 r = ((endColor >> 16) & 0xff);
+//            u8 g = ((endColor >> 8) & 0xff);
+//            u8 b = (endColor & 0xff);
+//        } else {
+//            float fStep = 1.0;
+//            float minZ = 0.1;
+//            int selStep = (int) ((height - minZ) / fStep);
+//
+//            float tempValue = height - minZ - selStep * fStep;
+//            float scale = tempValue / fStep;
+//            u8 a,r,g,b;
+//            ramp.GetColor4ub(scale, a, r, g, b, selStep + 1);
+//        }
     }
 
     bool RosVisualization::setup(ros::NodeHandle &node, ros::NodeHandle &privateNode) {
