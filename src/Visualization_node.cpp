@@ -22,7 +22,6 @@ int main(int argc, char **argv)
         globalVis.spin();
         globalVis.waitForFinish();
     }
-    //visualizeThread.join();
 
     return 0;
 }

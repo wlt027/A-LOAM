@@ -80,6 +80,11 @@ namespace vis {
          */
         void odomAftMappedHandler(const nav_msgs::Odometry::ConstPtr& odomAftMapped);
 
+        /** \brief Handler method for a tracked image.
+         *
+         * @param img_msg the new tracked image message
+         */
+        void trackedImageHandler(const sensor_msgs::Image::ConstPtr &img_msg);
     public:
         void run();
 
@@ -105,6 +110,7 @@ namespace vis {
 
         void getCurrentAxisPose(pangolin::OpenGlMatrix &M);
 
+        void drawCurrentImage(pangolin::GlTexture &gl_texture, cv::Mat &image);
 
         void drawTrajectory();
 
@@ -120,14 +126,13 @@ namespace vis {
         ros::Subscriber _subLaserCloudMap;    ///< map cloud message subscriber
         ros::Subscriber _subLaserCloudFullRes;     ///< current full resolution cloud message subscriber
 
+        ros::Subscriber _sub_track_img;
+
         // restart
         ros::Publisher _pubRestart;
 
         // save
         ros::Publisher _pubSave;
-
-        // optimize
-        ros::Publisher _pubOptimize;
 
     private:
 
@@ -136,7 +141,11 @@ namespace vis {
         bool required_stop_;
         bool is_finished_;
 
+        // current image
+        cv::Mat image_;
+        cv::Size image_size_;
 
+        std::mutex mutex_image_;
         std::mutex mutex_pose_;
         std::mutex mutex_cur_pose_;
         std::mutex mutex_laser_cloud_;
@@ -148,17 +157,21 @@ namespace vis {
         bool m_bShowBigPointSize;
 
         //Scan
-        pcl::PointCloud<pcl::PointXYZ>::Ptr _laserCloudFullRes;      ///< last full resolution cloud
+        pcl::PointCloud<pcl::PointXYZI>::Ptr _laserCloudFullRes;      ///< last full resolution cloud
 
         //Map
         pcl::PointCloud<pcl::PointXYZI>::Ptr _laserCloudSurroundDS;     ///< down sampled
 
         traj_point curPQ;
+
         double curT;
+
+        int nScanCount;
 
         // body trajectory
         std::vector<std::pair<double,traj_point>> mTraj;
 
+        std::string strOut;
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };

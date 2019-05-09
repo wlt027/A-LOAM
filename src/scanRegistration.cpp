@@ -157,7 +157,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
     std::vector<int> scanStartInd(N_SCANS0, 0);
     std::vector<int> scanEndInd(N_SCANS0, 0);
 
-    pcl::PointCloud<pcl::PointXYZ> laserCloudIn;
+    pcl::PointCloud<PointXYZIRTRaw> laserCloudIn;
     pcl::fromROSMsg(*laserCloudMsg, laserCloudIn);
     std::vector<int> indices;
 
@@ -191,6 +191,8 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
     bool halfPassed = false;
     int count = cloudSize;
     PointType point;
+    pcl::PointCloud<PointType>::Ptr fullCloud(new pcl::PointCloud<PointType>());
+
     std::vector<pcl::PointCloud<PointType>> laserCloudScans(N_SCANS0);
     for (int i = 0; i < cloudSize; i++)
     {
@@ -309,6 +311,13 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         point_b.z = coord_b(2);
         point_b.intensity = point.intensity;
         laserCloudScans[scanID].push_back(point_b);
+
+        PointType tmpPt;
+        tmpPt.x = coord_b(0);
+        tmpPt.y = coord_b(1);
+        tmpPt.z = coord_b(2);
+        tmpPt.intensity = laserCloudIn.points[i].intensity;
+        fullCloud->push_back(tmpPt);
     }
     
     cloudSize = count;
@@ -479,9 +488,8 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
     printf("sort q time %f \n", t_q_sort);
     printf("seperate points time %f \n", t_pts.toc());
 
-
     sensor_msgs::PointCloud2 laserCloudOutMsg;
-    pcl::toROSMsg(*laserCloud, laserCloudOutMsg);
+    pcl::toROSMsg(*fullCloud, laserCloudOutMsg);
     laserCloudOutMsg.header.stamp = laserCloudMsg->header.stamp;
     laserCloudOutMsg.header.frame_id = "/camera_init";
     if(num_of_lidar == 1)
@@ -518,7 +526,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
     if(num_of_lidar == 2)
     {
         m_buf.lock();
-        laser0Buf.push(std::make_tuple(laserCloudMsg->header.stamp.toSec(),*laserCloud,cornerPointsSharp,cornerPointsLessSharp,surfPointsFlat,surfPointsLessFlat));
+        laser0Buf.push(std::make_tuple(laserCloudMsg->header.stamp.toSec(),*fullCloud,cornerPointsSharp,cornerPointsLessSharp,surfPointsFlat,surfPointsLessFlat));
         m_buf.unlock();
         con.notify_one();
     }
@@ -749,6 +757,7 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
     bool halfPassed = false;
     int count = cloudSize;
     PointType2 point;
+    pcl::PointCloud<PointType2>::Ptr fullCloud(new pcl::PointCloud<PointType2>());
     std::vector<pcl::PointCloud<PointType2>> laserCloudScans(N_SCANS1);
     for (int i = 0; i < cloudSize; i++)
     {
@@ -869,7 +878,17 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         point_b.y = coord_b(1);
         point_b.z = coord_b(2);
         point_b.intensity = point.intensity;
+
         laserCloudScans[scanID].push_back(point_b);
+
+        PointType2 tmpPt;
+        tmpPt.time = point.time;
+        tmpPt.x = coord_b(0);
+        tmpPt.y = coord_b(1);
+        tmpPt.z = coord_b(2);
+        tmpPt.intensity = laserCloudIn.points[i].intensity;
+
+        fullCloud->push_back(tmpPt);
     }
 
     cloudSize = count;
@@ -1067,8 +1086,8 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
             vecLessSufelsBins.push_back(pcd4);
         }
 
-        for (int idx = 0; idx < laserCloud->size(); idx++) {
-            PointType2 pt = laserCloud->points[idx];
+        for (int idx = 0; idx < fullCloud->size(); idx++) {
+            PointType2 pt = fullCloud->points[idx];
 
             double pt_time = pt.time;
 

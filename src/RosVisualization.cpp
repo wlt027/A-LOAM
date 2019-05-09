@@ -26,7 +26,7 @@ namespace vis {
     }
 
     RosVisualization::RosVisualization()
-    :required_stop_(false), is_finished_(false),_laserCloudFullRes(new pcl::PointCloud<pcl::PointXYZ>()),
+    :required_stop_(false), is_finished_(false),_laserCloudFullRes(new pcl::PointCloud<pcl::PointXYZI>()),
      _laserCloudSurroundDS(new pcl::PointCloud<pcl::PointXYZI>()){
 
         m_bShowIntensity = true;
@@ -36,6 +36,11 @@ namespace vis {
 
         pangolin_thread_ = std::make_shared<std::thread>(std::bind(&RosVisualization::run, this));
 
+        image_size_ = cv::Size(752,480);
+
+        nScanCount = 0;
+
+        strOut = "";
 //        P_B_C = Eigen::Vector3d(0,0,0);
 //        R_B_C.setIdentity();
     }
@@ -49,6 +54,9 @@ namespace vis {
         _subLaserCloudFullRes = node.subscribe<sensor_msgs::PointCloud2>
                 ("/velodyne_cloud_registered", 2, &RosVisualization::laserCloudFullResHandler, this);
 
+        _sub_track_img = node.subscribe<sensor_msgs::Image>
+                ("/camera/image",1000,&RosVisualization::trackedImageHandler,this);
+
         // subscribe to laser odometry and mapping odometry topics
         _subLaserOdometry = node.subscribe<nav_msgs::Odometry>
                 ("/aft_mapped_to_init_high_frec", 5, &RosVisualization::laserOdometryHandler, this);
@@ -60,7 +68,8 @@ namespace vis {
 
         _pubSave = node.advertise<std_msgs::Bool>("/save",5);
 
-        _pubOptimize = node.advertise<std_msgs::Bool>("/optimizeMap",1);
+        node.getParam("out_path", strOut);
+
         return true;
     }
 
@@ -82,6 +91,7 @@ namespace vis {
         std_msgs::Bool save_flag;
         save_flag.data = true;
         _pubSave.publish(save_flag);
+        
     }
 
     void RosVisualization::setStop() {
@@ -106,6 +116,7 @@ namespace vis {
 
     void RosVisualization::clearState()
     {
+        nScanCount = 0;
         mutex_pose_.lock();
         mTraj.clear();
         mutex_pose_.unlock();
@@ -122,6 +133,11 @@ namespace vis {
         mutex_laser_cloud_surround_.lock();
         _laserCloudSurroundDS->clear();
         mutex_laser_cloud_surround_.unlock();
+
+        mutex_image_.lock();
+        cv::Mat image = cv::Mat::zeros(image_size_, CV_8UC3);
+        image.copyTo(image_);
+        mutex_image_.unlock();
     }
 
     void RosVisualization::run() {
@@ -155,10 +171,18 @@ namespace vis {
                 .SetBounds(0.0, 1.0, pangolin::Attach::Pix(175), 1.0, -w / (float) h)
                 .SetHandler(new pangolin::Handler3D(s_cam));
 
-        // This view will take up no more than a third of the windows width or height, and it
-        // will have a fixed aspect ratio to match the image that it will display. When fitting
-        // within the specified bounds, push to the top-left (as specified by SetLock).
-        // 3 images
+        int width = image_size_.width;
+        int height = image_size_.height;
+        pangolin::View &d_video = pangolin::Display("imgVideo")
+                .SetAspect(width / (float) height);
+
+        pangolin::GlTexture texVideo(width,height,GL_RGB,false,0,GL_RGB,GL_UNSIGNED_BYTE);
+
+        pangolin::CreateDisplay()
+                //.SetBounds(0.0, 0.3, pangolin::Attach::Pix(175), 1.0)
+                .SetBounds(0.0, 1.0, 0.8, 1.0)
+                .SetLayout(pangolin::LayoutEqual)
+                .AddDisplay(d_video);
 
         pangolin::CreatePanel("menu").SetBounds(0.0, 1.0, 0.0, pangolin::Attach::Pix(175)); //new button and menu
         pangolin::Var<bool> menuFollowCamera("menu.Follow Camera", true, true);
@@ -166,6 +190,7 @@ namespace vis {
         pangolin::Var<bool> menuViewSubmap("menu.Show Submap", true, true);
         pangolin::Var<bool> menuViewScan("menu.Show Scan", true, true);
         pangolin::Var<bool> menuViewIntensity("menu.Show Intenstiy",true,true);
+        pangolin::Var<bool> menuViewImage("menu.Show Image", true, true);
         pangolin::Var<bool> menuViewBigPointSize("menu.BPS",false,true);
         pangolin::Var<bool> buttonViewFPS("menu.FPS", false, false);
         pangolin::Var<bool> buttonRestart("menu.Restart", false, false);
@@ -227,6 +252,19 @@ namespace vis {
                 drawTrajectory();
             }
 
+            if (menuViewImage && !image_.empty()) {
+                cv::Mat image;
+                mutex_image_.lock();
+                image = image_;
+                mutex_image_.unlock();
+
+                drawCurrentImage(texVideo, image);
+                //display the image
+                d_video.Activate();
+                glColor3f(1.0, 1.0, 1.0);
+                texVideo.RenderToViewportFlipY();
+            }
+
             pangolin::FinishFrame();
         }
 
@@ -275,7 +313,7 @@ namespace vis {
             glColor3f(0.0, 1.0, 0.0);
             glBegin(GL_POINTS);
             for (int i = 0; i < _laserCloudFullRes->size(); i++) {
-                pcl::PointXYZ pt = (*_laserCloudFullRes)[i];
+                pcl::PointXYZI pt = (*_laserCloudFullRes)[i];
 
                 if (pt.x == 0 && pt.y == 0 && pt.z == 0) {
                     continue;
@@ -357,6 +395,16 @@ namespace vis {
             M.SetIdentity();
     }
 
+    void
+    RosVisualization::drawCurrentImage(pangolin::GlTexture &gl_texture, cv::Mat &image) {
+        if (image.empty())
+            return;
+
+        if (image.type() == CV_8UC1)
+            cv::cvtColor(image, image, CV_GRAY2RGB);
+        gl_texture.Upload(image.data, GL_RGB, GL_UNSIGNED_BYTE);
+    }
+
 
     void
     RosVisualization::drawTrajectory() {
@@ -401,11 +449,44 @@ namespace vis {
             mutex_laser_cloud_.lock();
 
             _laserCloudFullRes->clear();
+
             pcl::fromROSMsg(*laserCloudFullResMsg,*_laserCloudFullRes);
 
+            if(!strOut.empty() && nScanCount % 5 == 0)
+            {
+                {
+                    std::string str = strOut + "/map.txt";
+
+                    FILE* pFile = fopen(str.data(),"at");
+
+                    for(int i = 0; i< _laserCloudFullRes->size();i++)
+                    {
+                        pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
+
+                        fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+                    }
+                    fclose(pFile);
+                }
+            }
+
+            nScanCount++;
             mutex_laser_cloud_.unlock();
 
             //ROS_INFO("laser count: %d",_laserCloudFullRes->size());
+        }
+    }
+
+    void RosVisualization::trackedImageHandler(const sensor_msgs::Image::ConstPtr& img_msg)
+    {
+        cv_bridge::CvImageConstPtr ptr;
+        ptr = cv_bridge::toCvCopy(img_msg);
+
+        cv::Mat show_img = ptr->image;
+
+        if (!show_img.empty()) {
+            mutex_image_.lock();
+            show_img.copyTo(image_);
+            mutex_image_.unlock();
         }
     }
 

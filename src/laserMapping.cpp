@@ -48,6 +48,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <std_msgs/Bool.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
 #include <eigen3/Eigen/Dense>
@@ -125,6 +126,7 @@ std::queue<sensor_msgs::PointCloud2ConstPtr> surfLastBuf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> fullResBuf;
 std::queue<nav_msgs::Odometry::ConstPtr> odometryBuf;
 std::mutex mBuf;
+std::mutex mSave;
 
 pcl::VoxelGrid<PointType> downSizeFilterCorner;
 pcl::VoxelGrid<PointType> downSizeFilterSurf;
@@ -137,6 +139,8 @@ PointType pointOri, pointSel;
 ros::Publisher pubLaserCloudSurround, pubLaserCloudMap, pubLaserCloudFullRes, pubOdomAftMapped, pubOdomAftMappedHighFrec, pubLaserAfterMappedPath;
 
 nav_msgs::Path laserAfterMappedPath;
+
+std::string strOut;
 
 // set initial guess
 void transformAssociateToMap()
@@ -559,7 +563,7 @@ void process()
 				kdtreeSurfFromMap->setInputCloud(laserCloudSurfFromMap);
 				printf("build tree time %f ms \n", t_tree.toc());
 
-				for (int iterCount = 0; iterCount < 2; iterCount++)
+				for (int iterCount = 0; iterCount < 5; iterCount++)
 				{
 					//ceres::LossFunction *loss_function = NULL;
 					ceres::LossFunction *loss_function = new ceres::HuberLoss(0.1);
@@ -892,6 +896,58 @@ void process()
 	}
 }
 
+void save_map()
+{
+	mSave.lock();
+
+	std::string str = strOut + "/sparse_map.txt";
+
+	FILE* pFile = fopen(str.data(),"w");
+
+	pcl::PointCloud<PointType> laserCloudMap;
+	for (int i = 0; i < 4851; i++)
+	{
+		laserCloudMap += *laserCloudCornerArray[i];
+		laserCloudMap += *laserCloudSurfArray[i];
+	}
+
+	for(int i = 0; i< laserCloudMap.size();i++)
+	{
+		PointType& pt = laserCloudMap[i];
+
+		fprintf(pFile,"%f,%f,%f\n",pt.x,pt.y,pt.z);
+	}
+	fclose(pFile);
+
+	mSave.unlock();
+
+}
+
+void save_callback(const std_msgs::BoolConstPtr &restart_msg)
+{
+	ROS_WARN("save map!");
+	save_map();
+
+	ROS_INFO("save map done!");
+}
+
+void command()
+{
+	while(1)
+	{
+		char c = getchar();
+		if (c == 's')
+		{
+			ROS_WARN("save map!");
+			save_map();
+
+			ROS_INFO("save map done!");
+		}
+		std::chrono::milliseconds dura(5);
+		std::this_thread::sleep_for(dura);
+	}
+}
+
 int main(int argc, char **argv)
 {
 	ros::init(argc, argv, "laserMapping");
@@ -905,6 +961,8 @@ int main(int argc, char **argv)
 	downSizeFilterCorner.setLeafSize(lineRes, lineRes,lineRes);
 	downSizeFilterSurf.setLeafSize(planeRes, planeRes, planeRes);
 
+	nh.getParam("out_path", strOut);
+
 	ros::Subscriber subLaserCloudCornerLast = nh.subscribe<sensor_msgs::PointCloud2>("/laser_cloud_corner_last", 100, laserCloudCornerLastHandler);
 
 	ros::Subscriber subLaserCloudSurfLast = nh.subscribe<sensor_msgs::PointCloud2>("/laser_cloud_surf_last", 100, laserCloudSurfLastHandler);
@@ -912,6 +970,8 @@ int main(int argc, char **argv)
 	ros::Subscriber subLaserOdometry = nh.subscribe<nav_msgs::Odometry>("/laser_odom_to_init", 100, laserOdometryHandler);
 
 	ros::Subscriber subLaserCloudFullRes = nh.subscribe<sensor_msgs::PointCloud2>("/velodyne_cloud_3", 100, laserCloudFullResHandler);
+
+	ros::Subscriber sub_save = nh.subscribe("/save", 5, save_callback);
 
 	pubLaserCloudSurround = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surround", 100);
 
@@ -932,6 +992,9 @@ int main(int argc, char **argv)
 	}
 
 	std::thread mapping_process{process};
+
+	std::thread keyboard_command_process;
+	keyboard_command_process = std::thread(command);
 
 	ros::spin();
 
