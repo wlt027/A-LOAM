@@ -156,6 +156,7 @@ namespace vis {
 
         bool m_bShowIntensity;
         bool m_bShowBigPointSize;
+        bool m_bOutput;
 
         //Scan
         pcl::PointCloud<pcl::PointXYZI>::Ptr _laserCloudFullRes;      ///< last full resolution cloud

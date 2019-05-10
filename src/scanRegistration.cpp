@@ -303,7 +303,7 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         float relTime = (ori - startOri) / (endOri - startOri);
         point.intensity = scanID + scanPeriod * relTime;
 
-        Eigen::Vector3f coord_l(point.x,point.y,point.z);
+        Eigen::Vector3f coord_l(laserCloudIn.points[i].x,laserCloudIn.points[i].y,laserCloudIn.points[i].z);
         Eigen::Vector3f coord_b = QBL0*coord_l + PBL0;
         PointType point_b;
         point_b.x = coord_b(0);
@@ -870,7 +870,7 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         float relTime = (ori - startOri) / (endOri - startOri);
         point.intensity = N_SCANS0 + NEARBY_SCAN + 1 + scanID + scanPeriod * relTime;
 
-        Eigen::Vector3f coord_l(point.x,point.y,point.z);
+        Eigen::Vector3f coord_l(laserCloudIn.points[i].x,laserCloudIn.points[i].y,laserCloudIn.points[i].z);
         Eigen::Vector3f coord_b = QBL1*coord_l + PBL1;
         PointType2 point_b;
         point_b.time = point.time;
@@ -1289,6 +1289,21 @@ int main(int argc, char **argv)
         nh.getParam("lidar_topic", LIDAR0_TOPIC);
         printf("scan line number %d \n", N_SCANS0);
         printf("lidar topic:%s \n",LIDAR0_TOPIC.data());
+
+        {
+            float x,y,z,rx,ry,rz;
+            nh.param<float>("lidar0_x",x,0);
+            nh.param<float>("lidar0_y",y,0);
+            nh.param<float>("lidar0_z",z,0);
+            nh.param<float>("lidar0_rx",rx,0);
+            nh.param<float>("lidar0_ry",ry,0);
+            nh.param<float>("lidar0_rz",rz,0);
+
+            PBL0 = Eigen::Vector3f(x,y,z);
+            QBL0 = Eigen::Quaternionf(Eigen::AngleAxisf(rz * M_PI / 180.0, Eigen::Vector3f::UnitZ())
+                                      * Eigen::AngleAxisf(ry * M_PI / 180.0, Eigen::Vector3f::UnitY())
+                                      * Eigen::AngleAxisf(rx * M_PI / 180.0, Eigen::Vector3f::UnitX()));
+        }
 
         if(N_SCANS0 != 16 && N_SCANS0 != 32 && N_SCANS0 != 64 && N_SCANS0 != 40)
         {

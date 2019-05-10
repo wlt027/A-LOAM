@@ -8,10 +8,17 @@
     <!-- remove too closed points -->
     <param name="minimum_range" type="double" value="3"/>
 
-    <param name="lidar_topic" type="string" value="/pandar_points" />
+    <param name="lidar_topic" type="string" value="/ns1/pandar_points" />
+    <param name="lidar0_x" type="double" value="0.0" />
+    <param name="lidar0_y" type="double" value="0.0" />
+    <param name="lidar0_z" type="double" value="0.0" />
+    <param name="lidar0_rx" type="double" value="0" />
+    <param name="lidar0_ry" type="double" value="0" />
+    <param name="lidar0_rz" type="double" value="90" />
 
     <param name="mapping_line_resolution" type="double" value="0.4"/>
     <param name="mapping_plane_resolution" type="double" value="0.8"/>
+    <param name="out_path" type="string" value="/home/wlt-zh" />
 
     <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" />
 

@@ -15,6 +15,12 @@ namespace vis {
 
     const f32 ColorRCP = 1.0f / 255.0f;
 
+    template<typename T>
+    inline T clamp(T x, T min, T max)
+    {
+        return std::max(std::min(x, max), min);
+    }
+
     //! Creates a 16 bit A1R5G5B5 color
     inline u16 RGBA16(u32 r, u32 g, u32 b, u32 a = 0xFF) {
         return (u16) ((a & 0x80) << 8 |
@@ -209,76 +215,75 @@ namespace vis {
 
     static RGB colorRampList[5][11] =
      {
-             {
-                     RGB(202, 111, 255),
-                     RGB(150, 111, 255),
-                     RGB(70, 111, 255),
-                     RGB(0, 111, 255),
-                     RGB(0, 50, 255),
-                     RGB(0, 0, 255),
-                     RGB(0, 0, 150),
-                     RGB(0, 70, 150),
-                     RGB(0, 150, 150),
-                     RGB(0, 255, 150),
-                     RGB(0, 255, 255)
-             },
-             {
-                     RGB(0, 255, 0),
-                     RGB(0, 255, 70),
-                     RGB(0, 255, 150),
-                     RGB(0, 150, 150),
-                     RGB(0, 70, 150),
-                     RGB(0, 0, 255),
-                     RGB(70, 0, 255),
-                     RGB(150, 0, 255),
-                     RGB(255, 0, 150),
-                     RGB(255, 0, 0),
-                     RGB(255, 0, 0)
-             },
-             {
-                     RGB(255, 0, 0),
-                     RGB(255, 180, 0),
-                     RGB(255, 120, 0),
-                     RGB(255, 0, 0),
-                     RGB(255, 0, 80),
-                     RGB(255, 0, 150),
-                     RGB(255, 120, 150),
-                     RGB(180, 120, 150),
-                     RGB(120, 120, 80),
-                     RGB(80, 180, 80),
-                     RGB(0, 255, 0)
-             },
-             {
-                     RGB(245, 245, 150),
-                     RGB(250, 245, 120),
-                     RGB(255, 255, 60),
-                     RGB(255, 220, 0),
-                     RGB(255, 120, 0),
-                     RGB(255, 0, 60),
-                     RGB(255, 0, 150),
-                     RGB(220, 0, 240),
-                     RGB(150, 20, 220),
-                     RGB(75, 30, 200),
-                     RGB(20, 20, 175)
-             },
-             {
-                     RGB(0, 0, 180),
-                     RGB(0, 120, 255),
-                     RGB(0, 220, 255),
-                     RGB(0, 220, 120),
-                     RGB(0, 220, 0),
-                     RGB(120, 220, 0),
-                     RGB(255, 220, 0),
-                     RGB(255, 120, 0),
-                     RGB(255, 90, 0),
-                     RGB(255, 60, 0),
-                     RGB(180, 0, 0)
-             },
+       {
+               RGB(202, 111, 255),
+               RGB(150, 111, 255),
+               RGB(70, 111, 255),
+               RGB(0, 111, 255),
+               RGB(0, 50, 255),
+               RGB(0, 0, 255),
+               RGB(0, 0, 150),
+               RGB(0, 70, 150),
+               RGB(0, 150, 150),
+               RGB(0, 255, 150),
+               RGB(0, 255, 255)
+       },
+       {
+               RGB(0, 255, 0),
+               RGB(0, 255, 70),
+               RGB(0, 255, 150),
+               RGB(0, 150, 150),
+               RGB(0, 70, 150),
+               RGB(0, 0, 255),
+               RGB(70, 0, 255),
+               RGB(150, 0, 255),
+               RGB(255, 0, 150),
+               RGB(255, 0, 0),
+               RGB(255, 0, 0)
+       },
+       {
+               RGB(255, 0, 0),
+               RGB(255, 180, 0),
+               RGB(255, 120, 0),
+               RGB(255, 0, 0),
+               RGB(255, 0, 80),
+               RGB(255, 0, 150),
+               RGB(255, 120, 150),
+               RGB(180, 120, 150),
+               RGB(120, 120, 80),
+               RGB(80, 180, 80),
+               RGB(0, 255, 0)
+       },
+       {
+               RGB(245, 245, 150),
+               RGB(250, 245, 120),
+               RGB(255, 255, 60),
+               RGB(255, 220, 0),
+               RGB(255, 120, 0),
+               RGB(255, 0, 60),
+               RGB(255, 0, 150),
+               RGB(220, 0, 240),
+               RGB(150, 20, 220),
+               RGB(75, 30, 200),
+               RGB(20, 20, 175)
+       },
+       {
+               RGB(0, 0, 180),
+               RGB(0, 120, 255),
+               RGB(0, 220, 255),
+               RGB(0, 220, 120),
+               RGB(0, 220, 0),
+               RGB(120, 220, 0),
+               RGB(255, 220, 0),
+               RGB(255, 120, 0),
+               RGB(255, 90, 0),
+               RGB(255, 60, 0),
+               RGB(180, 0, 0)
+       },
      };
 
     class ColorRamp {
     private:
-
         s32 m_difA;
 
         s32 m_difR;
@@ -295,7 +300,6 @@ namespace vis {
         s32 m_tempR[10];
         s32 m_tempG[10];
         s32 m_tempB[10];
-
 
         u32 m_colorBegin;
         u32 m_colorEnd;
@@ -375,8 +379,8 @@ namespace vis {
         }
 
         inline void GetColor4f(f32 scale, f32 &a, f32 &r, f32 &g, f32 &b, int step) {
-//            scale = clamp(scale, 0.f, 1.f);
-//            step = clamp(step, 1, 10);
+            scale = clamp(scale, 0.f, 1.f);
+            step = clamp(step, 1, 10);
 
             if (step == 1) {
                 a = (scale * (m_tempA[0] - m_begA) + m_begA) * ColorRCP;
@@ -392,8 +396,8 @@ namespace vis {
         }
 
         inline void GetColor4ub(f32 scale, u8 &a, u8 &r, u8 &g, u8 &b, int step) {
-//            scale = clamp(scale, 0.f, 1.f);
-//            step = clamp(step, 1, 10);
+            scale = clamp(scale, 0.f, 1.f);
+            step = clamp(step, 1, 10);
 
             if (step == 1) {
                 a = (u8)(scale * (m_tempA[0] - m_begA) + m_begA);
@@ -409,8 +413,8 @@ namespace vis {
         }
 
         inline void GetColor4i(f32 scale, u32 &a, u32 &r, u32 &g, u32 &b, int step) {
-//            scale = clamp(scale, 0.f, 1.f);
-//            step = clamp(step, 1, 10);
+            scale = clamp(scale, 0.f, 1.f);
+            step = clamp(step, 1, 10);
 
             if (step == 1) {
                 a = (u32) (scale * (m_tempA[0] - m_begA) + m_begA);

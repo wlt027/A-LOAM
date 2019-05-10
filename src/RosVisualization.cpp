@@ -32,6 +32,7 @@ namespace vis {
 
         m_bShowIntensity = true;
         m_bShowBigPointSize = false;
+        m_bOutput = false;
 
         curT = 0;
 
@@ -44,29 +45,6 @@ namespace vis {
         strOut = "";
 //        P_B_C = Eigen::Vector3d(0,0,0);
 //        R_B_C.setIdentity();
-
-//        u32 beginColor = ramp.GetBeginColor();
-//        u32 endColor = ramp.GetEndColor();
-//
-//        float height = 4;
-//        if (height < 0.5) {
-//            u8 r = ((beginColor >> 16) & 0xff);
-//            u8 g = ((beginColor >> 8) & 0xff);
-//            u8 b = (beginColor & 0xff);
-//        } else if (height > 50) {
-//            u8 r = ((endColor >> 16) & 0xff);
-//            u8 g = ((endColor >> 8) & 0xff);
-//            u8 b = (endColor & 0xff);
-//        } else {
-//            float fStep = 1.0;
-//            float minZ = 0.1;
-//            int selStep = (int) ((height - minZ) / fStep);
-//
-//            float tempValue = height - minZ - selStep * fStep;
-//            float scale = tempValue / fStep;
-//            u8 a,r,g,b;
-//            ramp.GetColor4ub(scale, a, r, g, b, selStep + 1);
-//        }
     }
 
     bool RosVisualization::setup(ros::NodeHandle &node, ros::NodeHandle &privateNode) {
@@ -298,6 +276,9 @@ namespace vis {
     void
     RosVisualization::drawSubMapPoints() {
          if (_laserCloudSurroundDS && _laserCloudSurroundDS->size() > 0) {
+             u32 beginColor = ramp.GetBeginColor();
+             u32 endColor = ramp.GetEndColor();
+
             if(m_bShowBigPointSize)
             {
                 glPointSize(2);
@@ -314,13 +295,38 @@ namespace vis {
                     continue;
                 }
 
+                float height = pt.z;
+                float minZ = -1;
+                float maxZ = 19;
+                float fStep = 2;
+                u8 a, r, g, b;
+
+                if (height < minZ) {
+                    r = ((beginColor >> 16) & 0xff);
+                    g = ((beginColor >> 8) & 0xff);
+                    b = (beginColor & 0xff);
+                } else if (height > maxZ) {
+                    r = ((endColor >> 16) & 0xff);
+                    g = ((endColor >> 8) & 0xff);
+                    b = (endColor & 0xff);
+                } else {
+                    int selStep = (int) ((height - minZ) / fStep);
+
+                    float tempValue = height - minZ - selStep * fStep;
+                    float scale = tempValue / fStep;
+                    ramp.GetColor4ub(scale, a, r, g, b, selStep + 1);
+                }
+
                 if(m_bShowIntensity)
                 {
-                    float inten = pt.intensity > 50.f ? 1.f : (float)pt.intensity / 50.f;
-                    glColor4f(1.0, 1.0, 1.0,inten);
+//                    float inten = pt.intensity > 50.f ? 1.f : (float)pt.intensity / 50.f;
+//                    glColor4f(1.0, 1.0, 1.0,inten);
+//                    float inten = pt.intensity > 50.f ? 255 : pt.intensity;
+                    glColor4ub(r, g, b,255);
                 } else
                 {
-                    glColor3f(1.0, 1.0, 1.0);
+//                    glColor3f(1.0, 1.0, 1.0);
+                    glColor3ub(r, g, b);
                 }
 
                 glVertex3f(pt.x, pt.y, pt.z);
@@ -334,7 +340,8 @@ namespace vis {
 
         if (_laserCloudFullRes && _laserCloudFullRes->size() > 0) {
             glPointSize(1);
-            glColor3f(0.0, 1.0, 0.0);
+//            glColor3f(0.0, 1.0, 0.0);
+            glColor3f(1.0, 1.0, 1.0);
             glBegin(GL_POINTS);
             for (int i = 0; i < _laserCloudFullRes->size(); i++) {
                 pcl::PointXYZI pt = (*_laserCloudFullRes)[i];
@@ -481,15 +488,31 @@ namespace vis {
                 {
                     std::string str = strOut + "/map.txt";
 
-                    FILE* pFile = fopen(str.data(),"at");
-
-                    for(int i = 0; i< _laserCloudFullRes->size();i++)
+                    if(!m_bOutput)
                     {
-                        pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
+                        m_bOutput = true;
+                        FILE* pFile = fopen(str.data(),"w");
 
-                        fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+                        for(int i = 0; i< _laserCloudFullRes->size();i++)
+                        {
+                            pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
+
+                            fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+                        }
+                        fclose(pFile);
                     }
-                    fclose(pFile);
+                    else
+                    {
+                        FILE* pFile = fopen(str.data(),"at");
+
+                        for(int i = 0; i< _laserCloudFullRes->size();i++)
+                        {
+                            pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
+
+                            fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+                        }
+                        fclose(pFile);
+                    }
                 }
             }
 

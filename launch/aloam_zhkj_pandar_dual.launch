@@ -1,0 +1,41 @@
+<launch>
+    
+    <param name="scan_line" type="int" value="40" />
+
+    <!-- if 1, do mapping 10 Hz, if 2, do mapping 5 Hz. Suggest to use 1, it will adjust frequence automaticlly -->
+    <param name="mapping_skip_frame" type="int" value="1" />
+
+    <!-- remove too closed points -->
+    <param name="minimum_range" type="double" value="0.1"/>
+
+    <param name="lidar_num" type="int" value="2" />
+    <param name="lidar0_topic" type="string" value="/ns1/pandar_points" />
+    <param name="lidar0_x" type="double" value="0.069000" />
+    <param name="lidar0_y" type="double" value="0.046000" />
+    <param name="lidar0_z" type="double" value="0.340000" />
+    <param name="lidar0_rx" type="double" value="0" />
+    <param name="lidar0_ry" type="double" value="0" />
+    <param name="lidar0_rz" type="double" value="90" />
+    <param name="scan0_line" type="int" value="40" />
+    <param name="lidar1_topic" type="string" value="/ns2/pandar_points" />
+    <param name="lidar1_x" type="double" value="-0.383097" />
+    <param name="lidar1_y" type="double" value="0.026492" />
+    <param name="lidar1_z" type="double" value="0.083167" />
+    <param name="lidar1_rx" type="double" value="44.548988" />
+    <param name="lidar1_ry" type="double" value="-1.363933" />
+    <param name="lidar1_rz" type="double" value="-86.561852" />
+    <param name="scan1_line" type="int" value="40" />
+    <param name="out_path" type="string" value="/home/wlt-zh" />
+
+    <param name="mapping_line_resolution" type="double" value="0.2"/>
+    <param name="mapping_plane_resolution" type="double" value="0.4"/>
+
+    <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" />
+
+    <node pkg="aloam_velodyne" type="alaserOdometry" name="alaserOdometry" output="screen" />
+
+    <node pkg="aloam_velodyne" type="alaserMapping" name="alaserMapping" output="screen" />
+
+    <node pkg="aloam_velodyne" type="visualizer"    name="visualizer"    output="screen"/>
+
+</launch>
