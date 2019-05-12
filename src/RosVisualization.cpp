@@ -493,25 +493,32 @@ namespace vis {
                         m_bOutput = true;
                         FILE* pFile = fopen(str.data(),"w");
 
-                        for(int i = 0; i< _laserCloudFullRes->size();i++)
+                        if(pFile)
                         {
-                            pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
+                            for(int i = 0; i< _laserCloudFullRes->size();i++)
+                            {
+                                pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
 
-                            fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+                                fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+                            }
+                            fclose(pFile);
                         }
-                        fclose(pFile);
+
                     }
                     else
                     {
                         FILE* pFile = fopen(str.data(),"at");
 
-                        for(int i = 0; i< _laserCloudFullRes->size();i++)
+                        if(pFile)
                         {
-                            pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
+                            for(int i = 0; i< _laserCloudFullRes->size();i++)
+                            {
+                                pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
 
-                            fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+                                fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+                            }
+                            fclose(pFile);
                         }
-                        fclose(pFile);
                     }
                 }
             }

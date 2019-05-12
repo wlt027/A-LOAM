@@ -7,7 +7,7 @@
     <param name="minimum_range" type="double" value="0.5"/>
 
     <param name="lidar_topic" type="string" value="/ns2/velodyne_points" />
-
+    <param name="lidar_num" type="int" value="1" />
     <param name="mapping_line_resolution" type="double" value="0.2"/>
     <param name="mapping_plane_resolution" type="double" value="0.4"/>
     <param name="out_path" type="string" value="/home/wlt-zh" />
