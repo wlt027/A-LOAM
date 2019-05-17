@@ -7,7 +7,7 @@
 
     <!-- remove too closed points -->
     <param name="minimum_range" type="double" value="3"/>
-
+    <param name="lidar_num" type="int" value="1" />
     <param name="lidar_topic" type="string" value="/ns1/pandar_points" />
     <param name="lidar0_x" type="double" value="0.0" />
     <param name="lidar0_y" type="double" value="0.0" />

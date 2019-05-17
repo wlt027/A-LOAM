@@ -80,7 +80,7 @@ namespace vis {
 
         node.getParam("out_path", strOut);
 
-        node.param<int>("scan_line", nSaveFreq, 2);
+        node.param<int>("save_freq", nSaveFreq, 1);
 
         return true;
     }
