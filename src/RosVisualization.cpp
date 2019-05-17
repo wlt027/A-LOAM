@@ -43,6 +43,11 @@ namespace vis {
         nScanCount = 0;
 
         strOut = "";
+
+        initQ = Eigen::Quaterniond(1,0,0,0);
+
+        nSaveFreq = 1;
+
 //        P_B_C = Eigen::Vector3d(0,0,0);
 //        R_B_C.setIdentity();
     }
@@ -66,11 +71,16 @@ namespace vis {
         _subOdomAftMapped = node.subscribe<nav_msgs::Odometry>
                 ("/aft_mapped_to_init", 5, &RosVisualization::odomAftMappedHandler, this);
 
+        _sub_init_rot = node.subscribe<nav_msgs::Odometry>
+                ("/init_rot", 5, &RosVisualization::initRotHandler, this);
+
         _pubRestart = node.advertise<std_msgs::Bool>("/restart",5);
 
         _pubSave = node.advertise<std_msgs::Bool>("/save",5);
 
         node.getParam("out_path", strOut);
+
+        node.param<int>("scan_line", nSaveFreq, 2);
 
         return true;
     }
@@ -457,6 +467,20 @@ namespace vis {
     }
 
     void
+    RosVisualization::initRotHandler(const nav_msgs::Odometry::ConstPtr& Odo)
+    {
+        ROS_INFO("get init rot");
+
+        if(Odo)
+        {
+            initQ.x() = Odo->pose.pose.orientation.x;
+            initQ.y() = Odo->pose.pose.orientation.y;
+            initQ.z() = Odo->pose.pose.orientation.z;
+            initQ.w() = Odo->pose.pose.orientation.w;
+        }
+    }
+
+    void
     RosVisualization::laserCloudSurroundHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudSurroundDSMsg) {
         //ROS_INFO("get laser surround message success!");
 
@@ -466,6 +490,17 @@ namespace vis {
 
             _laserCloudSurroundDS->clear();
             pcl::fromROSMsg(*laserCloudSurroundDSMsg, *_laserCloudSurroundDS);
+
+            // transform laser cloud
+            for(int i = 0; i< _laserCloudSurroundDS->size();i++)
+            {
+                pcl::PointXYZI& pt = _laserCloudSurroundDS->points[i];
+                Eigen::Vector3d pt_tmp(pt.x,pt.y,pt.z);
+                Eigen::Vector3d pt_w = initQ*pt_tmp;
+                pt.x = pt_w(0);
+                pt.y = pt_w(1);
+                pt.z = pt_w(2);
+            }
 
             mutex_laser_cloud_surround_.unlock();
         }
@@ -483,7 +518,18 @@ namespace vis {
 
             pcl::fromROSMsg(*laserCloudFullResMsg,*_laserCloudFullRes);
 
-            if(!strOut.empty() && nScanCount % 5 == 0)
+            // transform laser cloud
+            for(int i = 0; i< _laserCloudFullRes->size();i++)
+            {
+                pcl::PointXYZI& pt = _laserCloudFullRes->points[i];
+                Eigen::Vector3d pt_tmp(pt.x,pt.y,pt.z);
+                Eigen::Vector3d pt_w = initQ*pt_tmp;
+                pt.x = pt_w(0);
+                pt.y = pt_w(1);
+                pt.z = pt_w(2);
+            }
+
+            if(!strOut.empty() && nScanCount % nSaveFreq == 0)
             {
                 {
                     std::string str = strOut + "/map.txt";
@@ -599,6 +645,9 @@ namespace vis {
             q.x() = geoQuat.x;
             q.y() = geoQuat.y;
             q.z() = geoQuat.z;
+
+            p = initQ*p;
+            q = initQ*q;
 
             Eigen::Vector3d ypr = R2ypr(q.toRotationMatrix());
 

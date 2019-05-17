@@ -57,6 +57,7 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
 
@@ -81,6 +82,8 @@ Eigen::Vector3f PBL0(0,0,0);
 Eigen::Quaternionf QBL0(1,0,0,0);
 Eigen::Vector3f PBL1(0,0,0);
 Eigen::Quaternionf QBL1(1,0,0,0);
+Eigen::Vector3f PBI(0,0,0);
+Eigen::Quaternionf QBI(1,0,0,0);
 
 float cloudCurvature0[400000];
 int cloudSortInd0[400000];
@@ -99,6 +102,7 @@ typedef std::tuple<double,pcl::PointCloud<PointType>,pcl::PointCloud<PointType>,
 
 std::queue<LoamFeatures> laser0Buf;
 std::queue<LoamFeatures> laser1Buf;
+std::queue<sensor_msgs::ImuConstPtr> imuBuf;
 std::mutex m_buf;
 std::condition_variable con;
 
@@ -107,6 +111,10 @@ ros::Publisher pubCornerPointsSharp;
 ros::Publisher pubCornerPointsLessSharp;
 ros::Publisher pubSurfPointsFlat;
 ros::Publisher pubSurfPointsLessFlat;
+ros::Publisher pubInitRot;
+
+bool bInit = false;
+Eigen::Matrix3d initRot = Eigen::Matrix3d::Identity();
 
 double MINIMUM_RANGE0 = 0.1;
 
@@ -137,6 +145,64 @@ void removeClosedPointCloud(const pcl::PointCloud<PointT> &cloud_in,
     cloud_out.height = 1;
     cloud_out.width = static_cast<uint32_t>(j);
     cloud_out.is_dense = true;
+}
+
+Eigen::Matrix3d g2R(const Eigen::Vector3d &g) {
+    Eigen::Matrix3d R0;
+    Eigen::Vector3d ng1 = g.normalized();
+    Eigen::Vector3d ng2{0, 0, 1.0};
+    R0 = Eigen::Quaterniond::FromTwoVectors(ng1, ng2).toRotationMatrix();
+
+    return R0;
+}
+
+Eigen::Vector3d R2ypr(const Eigen::Matrix3d &R) {
+    Eigen::Vector3d n = R.col(0);
+    Eigen::Vector3d o = R.col(1);
+    Eigen::Vector3d a = R.col(2);
+
+    Eigen::Vector3d ypr(3);
+    double y = atan2(n(1), n(0));
+    double p = atan2(-n(2), n(0) * cos(y) + n(1) * sin(y));
+    double r = atan2(a(0) * sin(y) - a(1) * cos(y), -o(0) * sin(y) + o(1) * cos(y));
+    ypr(0) = y;
+    ypr(1) = p;
+    ypr(2) = r;
+
+    return ypr / M_PI * 180.0;
+}
+
+bool getIMUInterval(double t0, double t1, std::vector<Eigen::Vector3d> &accVector) {
+    if (imuBuf.empty()) {
+        printf("not receive imu\n");
+        return false;
+    }
+    //printf("get imu from %f %f\n", t0, t1);
+    //printf("imu fornt time %f   imu end time %f\n", accBuf.front().first, accBuf.back().first);
+    if (t1 <= imuBuf.back()->header.stamp.toSec()) {
+        while (imuBuf.front()->header.stamp.toSec() <= t0) {
+            imuBuf.pop();
+
+        }
+        while (imuBuf.front()->header.stamp.toSec() < t1) {
+            Eigen::Vector3d acc(imuBuf.front()->linear_acceleration.x,imuBuf.front()->linear_acceleration.y,imuBuf.front()->linear_acceleration.z);
+            accVector.push_back(acc);
+            imuBuf.pop();
+        }
+        Eigen::Vector3d acc(imuBuf.front()->linear_acceleration.x,imuBuf.front()->linear_acceleration.y,imuBuf.front()->linear_acceleration.z);
+        accVector.push_back(acc);
+    } else {
+        printf("wait for imu,%lf,%lf\n",t1,imuBuf.back()->header.stamp.toSec());
+        return false;
+    }
+    return true;
+}
+
+void imuHandler(const sensor_msgs::Imu::ConstPtr &imu)
+{
+    m_buf.lock();
+    imuBuf.push(imu);
+    m_buf.unlock();
 }
 
 void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
@@ -485,8 +551,51 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
 
         surfPointsLessFlat += surfPointsLessFlatScanDS;
     }
+
     printf("sort q time %f \n", t_q_sort);
     printf("seperate points time %f \n", t_pts.toc());
+
+    m_buf.lock();
+    {
+        std::vector<Eigen::Vector3d> vecAcc;
+        bool bGet = getIMUInterval(laserCloudMsg->header.stamp.toSec() - scanPeriod,laserCloudMsg->header.stamp.toSec(),vecAcc);
+
+        if(bGet && !bInit)
+        {
+            Eigen::Vector3d averAcc(0,0,0);
+            for(auto &acc: vecAcc)
+            {
+                averAcc += acc;
+            }
+
+            averAcc /= (double)vecAcc.size();
+
+            Eigen::Vector3d averAcc_b = QBI.cast<double>() * averAcc;
+
+            initRot = g2R(averAcc_b);
+
+            Eigen::Vector3d ypr = R2ypr(initRot);
+
+            printf("ypr:%lf,%lf,%lf\n",ypr(0),ypr(1),ypr(2));
+
+            Eigen::Quaterniond initQ(initRot);
+            bInit = true;
+
+            nav_msgs::Odometry odom;
+            odom.header.frame_id = "/camera_init";
+            odom.child_frame_id = "/aft_mapped";
+            odom.header.stamp = laserCloudMsg->header.stamp;
+            odom.pose.pose.orientation.x = initQ.x();
+            odom.pose.pose.orientation.y = initQ.y();
+            odom.pose.pose.orientation.z = initQ.z();
+            odom.pose.pose.orientation.w = initQ.w();
+            odom.pose.pose.position.x = 0;
+            odom.pose.pose.position.y = 0;
+            odom.pose.pose.position.z = 0;
+            pubInitRot.publish(odom);
+        }
+    }
+    m_buf.unlock();
 
     sensor_msgs::PointCloud2 laserCloudOutMsg;
     pcl::toROSMsg(*fullCloud, laserCloudOutMsg);
@@ -1272,6 +1381,25 @@ int main(int argc, char **argv)
     nh.param<double>("minimum_range", MINIMUM_RANGE0, 0.1);
 
     ros::Subscriber subLaserCloud0,subLaserCloud1;
+    std::string IMU_TOPIC;
+    nh.getParam("imu_topic",IMU_TOPIC);
+
+    {
+        float x,y,z,rx,ry,rz;
+        nh.param<float>("imu_x",x,0);
+        nh.param<float>("imu_y",y,0);
+        nh.param<float>("imu_z",z,0);
+        nh.param<float>("imu_rx",rx,0);
+        nh.param<float>("imu_ry",ry,0);
+        nh.param<float>("imu_rz",rz,0);
+
+        PBI = Eigen::Vector3f(x,y,z);
+        QBI = Eigen::Quaternionf(Eigen::AngleAxisf(rz * M_PI / 180.0, Eigen::Vector3f::UnitZ())
+                                  * Eigen::AngleAxisf(ry * M_PI / 180.0, Eigen::Vector3f::UnitY())
+                                  * Eigen::AngleAxisf(rx * M_PI / 180.0, Eigen::Vector3f::UnitX()));
+    }
+
+    ros::Subscriber subImu = nh.subscribe<sensor_msgs::Imu>(IMU_TOPIC, 100, imuHandler);
 
     pubLaserCloud = nh.advertise<sensor_msgs::PointCloud2>("/velodyne_cloud_2", 100);
 
@@ -1282,6 +1410,8 @@ int main(int argc, char **argv)
     pubSurfPointsFlat = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_flat", 100);
 
     pubSurfPointsLessFlat = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_less_flat", 100);
+
+    pubInitRot = nh.advertise<nav_msgs::Odometry>("/init_rot",100);
 
     if(num_of_lidar == 1)
     {

@@ -25,7 +25,15 @@
     <param name="lidar1_ry" type="double" value="-79.65381" />
     <param name="lidar1_rz" type="double" value="-2.225454" />
     <param name="scan1_line" type="int" value="16" />
-    <param name="out_path" type="string" value="/home/wlt-wh" />
+    <param name="imu_topic" type="string" value="/ins_imu" />
+    <param name="imu_x" type="double" value="0.0" />
+    <param name="imu_y" type="double" value="0.0" />
+    <param name="imu_z" type="double" value="0.0" />
+    <param name="imu_rx" type="double" value="0.0" />
+    <param name="imu_ry" type="double" value="-90.0" />
+    <param name="imu_rz" type="double" value="180.0" />
+    <param name="out_path" type="string" value="/home/wlt-zh" />
+    <param name="save_freq" type="int" value="5" />
 
     <param name="mapping_line_resolution" type="double" value="0.2"/>
     <param name="mapping_plane_resolution" type="double" value="0.4"/>

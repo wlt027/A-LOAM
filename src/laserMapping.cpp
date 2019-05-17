@@ -63,14 +63,12 @@
 #include "aloam_velodyne/common.h"
 #include "aloam_velodyne/tic_toc.h"
 
-
 int frameCount = 0;
 
 double timeLaserCloudCornerLast = 0;
 double timeLaserCloudSurfLast = 0;
 double timeLaserCloudFullRes = 0;
 double timeLaserOdometry = 0;
-
 
 int laserCloudCenWidth = 10;
 int laserCloudCenHeight = 10;
@@ -79,9 +77,7 @@ const int laserCloudWidth = 21;
 const int laserCloudHeight = 21;
 const int laserCloudDepth = 11;
 
-
 const int laserCloudNum = laserCloudWidth * laserCloudHeight * laserCloudDepth; //4851
-
 
 int laserCloudValidInd[125];
 int laserCloudSurroundInd[125];
@@ -120,7 +116,6 @@ Eigen::Vector3d t_wmap_wodom(0, 0, 0);
 Eigen::Quaterniond q_wodom_curr(1, 0, 0, 0);
 Eigen::Vector3d t_wodom_curr(0, 0, 0);
 
-
 std::queue<sensor_msgs::PointCloud2ConstPtr> cornerLastBuf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> surfLastBuf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> fullResBuf;
@@ -141,7 +136,6 @@ ros::Publisher pubLaserCloudSurround, pubLaserCloudMap, pubLaserCloudFullRes, pu
 nav_msgs::Path laserAfterMappedPath;
 
 std::string strOut;
-
 // set initial guess
 void transformAssociateToMap()
 {

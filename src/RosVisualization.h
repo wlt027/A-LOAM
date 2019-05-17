@@ -55,6 +55,12 @@ namespace vis {
          *
          * @param laserCloudFullResMsg the new full resolution cloud message
          */
+        void initRotHandler(const nav_msgs::Odometry::ConstPtr& Odo);
+
+        /** \brief Handler method for a new full resolution cloud.
+         *
+         * @param laserCloudFullResMsg the new full resolution cloud message
+         */
         void laserCloudSurroundHandler(const sensor_msgs::PointCloud2ConstPtr& laserCloudSurroundDSMsg);
 
         /** \brief Handler method for a new full resolution cloud.
@@ -128,6 +134,7 @@ namespace vis {
         ros::Subscriber _subLaserCloudFullRes;     ///< current full resolution cloud message subscriber
 
         ros::Subscriber _sub_track_img;
+        ros::Subscriber _sub_init_rot;
 
         // restart
         ros::Publisher _pubRestart;
@@ -170,8 +177,11 @@ namespace vis {
 
         int nScanCount;
 
+        int nSaveFreq;
         // body trajectory
         std::vector<std::pair<double,traj_point>> mTraj;
+
+        Eigen::Quaterniond initQ;
 
         std::string strOut;
 
