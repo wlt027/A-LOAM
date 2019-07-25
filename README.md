@@ -12,7 +12,7 @@ Here is the original statement of A-LOAM:
 
 A-LOAM is an Advanced implementation of LOAM (J. Zhang and S. Singh. LOAM: Lidar Odometry and Mapping in Real-time), which uses Eigen and Ceres Solver to simplify code structure. This code is modified from LOAM and [LOAM_NOTED](https://github.com/cuitaixiang/LOAM_NOTED). This code is clean and simple without complicated mathematical derivation and redundant operations. It is a good learning material for SLAM beginners.
 
-<img src="https://github.com/wlt027/A-LOAM/picture/M-Aloam.png" width = 55% height = 55%/>
+<img src="https://github.com/wlt027/A-LOAM/blob/devel/picture/M-Aloam.png" width = 55% height = 55%/>
 
 **Modifier:**[Chi Wei](https://github.com/wlt027/A-LOAM), [Tong Qin](http://www.qintonguav.com), [Shaozu Cao](https://github.com/shaozu)
 
