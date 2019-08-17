@@ -163,7 +163,8 @@ namespace vis {
 
         bool m_bShowIntensity;
         bool m_bShowBigPointSize;
-        bool m_bOutput;
+        bool m_bOutputMap;
+        bool m_bOutputTraj;
 
         //Scan
         pcl::PointCloud<pcl::PointXYZI>::Ptr _laserCloudFullRes;      ///< last full resolution cloud
@@ -178,6 +179,7 @@ namespace vis {
         int nScanCount;
 
         int nSaveFreq;
+
         // body trajectory
         std::vector<std::pair<double,traj_point>> mTraj;
 
@@ -186,6 +188,12 @@ namespace vis {
         std::string strOut;
 
         ColorRamp ramp;
+
+        int nSubmapBinSize;
+        int nSubmapCount;
+
+        vector<pcl::PointCloud<pcl::PointXYZI>> submap;
+
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW
     };

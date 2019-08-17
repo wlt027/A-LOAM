@@ -32,7 +32,8 @@ namespace vis {
 
         m_bShowIntensity = true;
         m_bShowBigPointSize = false;
-        m_bOutput = false;
+        m_bOutputMap = false;
+        m_bOutputTraj = false;
 
         curT = 0;
 
@@ -48,8 +49,8 @@ namespace vis {
 
         nSaveFreq = 1;
 
-//        P_B_C = Eigen::Vector3d(0,0,0);
-//        R_B_C.setIdentity();
+        nSubmapBinSize = 0;
+        nSubmapCount = 0;
     }
 
     bool RosVisualization::setup(ros::NodeHandle &node, ros::NodeHandle &privateNode) {
@@ -82,6 +83,8 @@ namespace vis {
 
         node.param<int>("save_freq", nSaveFreq, 1);
 
+        node.param<int>("submap_binsize",nSubmapBinSize,20);
+
         return true;
     }
 
@@ -103,6 +106,36 @@ namespace vis {
         std_msgs::Bool save_flag;
         save_flag.data = true;
         _pubSave.publish(save_flag);
+
+        if(!strOut.empty() && nSubmapBinSize > 0 && submap.size() > 0)
+        {
+            std::string str = strOut + "/submap-" + std::to_string(nSubmapCount) + ".txt";
+
+            FILE *pFile = fopen(str.data(), "w");
+
+            // output timestamp first
+            double tm = curT;
+
+            fprintf(pFile,"%lf,%d\n",tm,nScanCount);
+
+            if (pFile) {
+                for (int i = 0; i < submap.size(); i++) {
+                    pcl::PointCloud<pcl::PointXYZI>& pcl = submap[i];
+
+                    for(int j = 0; j < pcl.size();j++) {
+                        pcl::PointXYZI &pt = pcl[j];
+
+                        fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
+                    }
+                }
+
+                fclose(pFile);
+            }
+
+            submap.clear();
+
+            nSubmapCount++;
+        }
         
     }
 
@@ -534,9 +567,9 @@ namespace vis {
                 {
                     std::string str = strOut + "/map.txt";
 
-                    if(!m_bOutput)
+                    if(!m_bOutputMap)
                     {
-                        m_bOutput = true;
+                        m_bOutputMap = true;
                         FILE* pFile = fopen(str.data(),"w");
 
                         if(pFile)
@@ -566,6 +599,44 @@ namespace vis {
                             fclose(pFile);
                         }
                     }
+                }
+            }
+
+            if(!strOut.empty() && nSubmapBinSize > 0)
+            {
+                if(nScanCount % nSubmapBinSize == 0 && nScanCount > 0)
+                {
+                    std::string str = strOut + "/submap-" + std::to_string(nSubmapCount) + ".txt";
+
+                    FILE *pFile = fopen(str.data(), "w");
+
+                    // output timestamp first
+                    double tm = laserCloudFullResMsg->header.stamp.toSec();
+
+                    fprintf(pFile,"%lf,%d\n",tm,nScanCount);
+
+                    if (pFile) {
+                        for (int i = 0; i < submap.size(); i++) {
+                            pcl::PointCloud<pcl::PointXYZI>& pcl = submap[i];
+
+                            for(int j = 0; j < pcl.size();j++) {
+                                pcl::PointXYZI &pt = pcl[j];
+
+                                fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
+                            }
+                        }
+
+                        fclose(pFile);
+                    }
+
+                    submap.clear();
+
+                    nSubmapCount++;
+
+                } else{
+                    pcl::PointCloud<pcl::PointXYZI> pcd;
+                    pcl::copyPointCloud(*_laserCloudFullRes,pcd);
+                    submap.push_back(pcd);
                 }
             }
 
@@ -668,6 +739,45 @@ namespace vis {
             curPQ.P = p;
             curPQ.Q = q;
             curT = tm;
+
+            if(!strOut.empty())
+            {
+                {
+                    std::string str = strOut + "/traj.txt";
+
+                    if(!m_bOutputTraj)
+                    {
+                        m_bOutputTraj = true;
+                        FILE* pFile = fopen(str.data(),"w");
+
+                        if(pFile)
+                        {
+
+                            Eigen::Vector3d ypr = R2ypr(q.toRotationMatrix());
+
+                            fprintf(pFile, "%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", tm, p(0), p(1), p(2), ypr(0), ypr(1),
+                                    ypr(2));
+
+                            fclose(pFile);
+                        }
+
+                    }
+                    else
+                    {
+                        FILE* pFile = fopen(str.data(),"at");
+
+                        if(pFile)
+                        {
+                            Eigen::Vector3d ypr = R2ypr(q.toRotationMatrix());
+
+                            fprintf(pFile, "%lf,%lf,%lf,%lf,%lf,%lf,%lf\n", tm, p(0), p(1), p(2), ypr(0), ypr(1),
+                                    ypr(2));
+
+                            fclose(pFile);
+                        }
+                    }
+                }
+            }
 
             mutex_cur_pose_.unlock();
         }

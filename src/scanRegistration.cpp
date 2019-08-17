@@ -117,6 +117,7 @@ bool bInit = false;
 Eigen::Matrix3d initRot = Eigen::Matrix3d::Identity();
 
 double MINIMUM_RANGE0 = 0.1;
+double MAXINUM_RANGE0 = 100;
 
 template <typename PointT>
 void removeClosedPointCloud(const pcl::PointCloud<PointT> &cloud_in,
@@ -378,12 +379,21 @@ void laserCloudHandler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
         point_b.intensity = point.intensity;
         laserCloudScans[scanID].push_back(point_b);
 
-        PointType tmpPt;
-        tmpPt.x = coord_b(0);
-        tmpPt.y = coord_b(1);
-        tmpPt.z = coord_b(2);
-        tmpPt.intensity = laserCloudIn.points[i].intensity;
-        fullCloud->push_back(tmpPt);
+        if(coord_b.norm() > 3 && coord_b.norm() < 3.5)
+        {
+//            printf("coord_l:%lf,%lf,%lf\n",coord_l(0),coord_l(1),coord_l(2));
+//            printf("coord_b:%lf,%lf,%lf\n",coord_b(0),coord_b(1),coord_b(2));
+
+        }
+        if(coord_b.norm() > MINIMUM_RANGE0 && coord_b.norm() < MAXINUM_RANGE0)
+        {
+            PointType tmpPt;
+            tmpPt.x = coord_b(0);
+            tmpPt.y = coord_b(1);
+            tmpPt.z = coord_b(2);
+            tmpPt.intensity = laserCloudIn.points[i].intensity;
+            fullCloud->push_back(tmpPt);
+        }
     }
     
     cloudSize = count;
@@ -990,14 +1000,18 @@ void laserCloud1Handler(const sensor_msgs::PointCloud2ConstPtr &laserCloudMsg)
 
         laserCloudScans[scanID].push_back(point_b);
 
-        PointType2 tmpPt;
-        tmpPt.time = point.time;
-        tmpPt.x = coord_b(0);
-        tmpPt.y = coord_b(1);
-        tmpPt.z = coord_b(2);
-        tmpPt.intensity = laserCloudIn.points[i].intensity;
+        if(coord_b.norm() > MINIMUM_RANGE0 && coord_b.norm() < MAXINUM_RANGE0)
+        {
+            PointType2 tmpPt;
+            tmpPt.time = point.time;
+            tmpPt.x = coord_b(0);
+            tmpPt.y = coord_b(1);
+            tmpPt.z = coord_b(2);
+            tmpPt.intensity = laserCloudIn.points[i].intensity;
 
-        fullCloud->push_back(tmpPt);
+            fullCloud->push_back(tmpPt);
+        }
+
     }
 
     cloudSize = count;
@@ -1379,6 +1393,7 @@ int main(int argc, char **argv)
 
     nh.param<int>("lidar_num",num_of_lidar,1);
     nh.param<double>("minimum_range", MINIMUM_RANGE0, 0.1);
+    nh.param<double>("maximum_range", MAXINUM_RANGE0, 100);
 
     ros::Subscriber subLaserCloud0,subLaserCloud1;
     std::string IMU_TOPIC;
