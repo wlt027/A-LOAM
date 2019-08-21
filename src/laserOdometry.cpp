@@ -236,7 +236,7 @@ int main(int argc, char **argv)
                 timeSurfPointsFlat != timeLaserCloudFullRes ||
                 timeSurfPointsLessFlat != timeLaserCloudFullRes)
             {
-                printf("unsync messeage!");
+                printf("laser odometry unsync messeage!");
                 ROS_BREAK();
             }
 

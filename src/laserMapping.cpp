@@ -234,15 +234,15 @@ void process()
 			!fullResBuf.empty() && !odometryBuf.empty())
 		{
 			mBuf.lock();
-			while (!odometryBuf.empty() && odometryBuf.front()->header.stamp.toSec() < cornerLastBuf.front()->header.stamp.toSec())
-				odometryBuf.pop();
-			if (odometryBuf.empty())
+			while (!cornerLastBuf.empty() && cornerLastBuf.front()->header.stamp.toSec() < odometryBuf.front()->header.stamp.toSec())
+                cornerLastBuf.pop();
+			if (cornerLastBuf.empty())
 			{
 				mBuf.unlock();
 				break;
 			}
 
-			while (!surfLastBuf.empty() && surfLastBuf.front()->header.stamp.toSec() < cornerLastBuf.front()->header.stamp.toSec())
+			while (!surfLastBuf.empty() && surfLastBuf.front()->header.stamp.toSec() < odometryBuf.front()->header.stamp.toSec())
 				surfLastBuf.pop();
 			if (surfLastBuf.empty())
 			{
@@ -250,7 +250,7 @@ void process()
 				break;
 			}
 
-			while (!fullResBuf.empty() && fullResBuf.front()->header.stamp.toSec() < cornerLastBuf.front()->header.stamp.toSec())
+			while (!fullResBuf.empty() && fullResBuf.front()->header.stamp.toSec() < odometryBuf.front()->header.stamp.toSec())
 				fullResBuf.pop();
 			if (fullResBuf.empty())
 			{
@@ -268,7 +268,7 @@ void process()
 				timeLaserCloudFullRes != timeLaserOdometry)
 			{
 				printf("time corner %f surf %f full %f odom %f \n", timeLaserCloudCornerLast, timeLaserCloudSurfLast, timeLaserCloudFullRes, timeLaserOdometry);
-				printf("unsync messeage!");
+				printf("laser mapping unsync messeage!");
 				mBuf.unlock();
 				break;
 			}
@@ -294,9 +294,9 @@ void process()
 			t_wodom_curr.z() = odometryBuf.front()->pose.pose.position.z;
 			odometryBuf.pop();
 
-			while(!cornerLastBuf.empty())
+			while(!odometryBuf.empty())
 			{
-				cornerLastBuf.pop();
+                odometryBuf.pop();
 				printf("drop lidar frame in mapping for real time performance \n");
 			}
 

@@ -562,7 +562,7 @@ namespace vis {
                 pt.z = pt_w(2);
             }
 
-            if(!strOut.empty() && nScanCount % nSaveFreq == 0)
+            if(!strOut.empty() && nScanCount % nSaveFreq == 0 && 0)
             {
                 {
                     std::string str = strOut + "/map.txt";
