@@ -25,7 +25,7 @@
 
     <param name="mapping_line_resolution" type="double" value="0.2"/>
     <param name="mapping_plane_resolution" type="double" value="0.4"/>
-    <param name="out_path" type="string" value="/home/wlt-zh/dataset/20190818/process" />
+    <param name="out_path" type="string" value="/home/wlt/data/hengbo/process" />
     <param name="submap_binsize" type="int" value="20" />
 
     <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" />

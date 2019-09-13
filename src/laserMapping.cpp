@@ -63,7 +63,12 @@
 #include "aloam_velodyne/common.h"
 #include "aloam_velodyne/tic_toc.h"
 
+#include <fstream>
+
 int frameCount = 0;
+int keyscanID = 0;
+int savefreq = 5;
+int rmapOut = 0;
 
 double timeLaserCloudCornerLast = 0;
 double timeLaserCloudSurfLast = 0;
@@ -136,6 +141,33 @@ ros::Publisher pubLaserCloudSurround, pubLaserCloudMap, pubLaserCloudFullRes, pu
 nav_msgs::Path laserAfterMappedPath;
 
 std::string strOut;
+
+std::ofstream ofs;
+
+void initOutput() {
+    if (1) {
+        ofs.open(strOut + "/global.rmap", std::ios::binary);
+        double PBG0, PBG1, PBG2;
+        double RBG00, RBG01, RBG02, RBG10, RBG11, RBG12, RBG20, RBG21, RBG22;
+        PBG0 = PBG1 = PBG2 = 0.0;
+        RBG00 = RBG01 = RBG02 = RBG10 = RBG11 = RBG12 = RBG20 = RBG21 = RBG22 = 0.0;
+
+        ofs.write(reinterpret_cast<const char*>(&PBG0), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&PBG1), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&PBG2), sizeof(double));
+
+        ofs.write(reinterpret_cast<const char*>(&RBG00), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG01), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG02), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG10), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG11), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG12), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG20), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG21), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG22), sizeof(double));
+    }
+}
+
 // set initial guess
 void transformAssociateToMap()
 {
@@ -224,6 +256,87 @@ void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr &laserOdometry)
 	odomAftMapped.pose.pose.position.y = t_w_curr.y();
 	odomAftMapped.pose.pose.position.z = t_w_curr.z();
 	pubOdomAftMappedHighFrec.publish(odomAftMapped);
+}
+
+void outputRMap(const int &scanId, const int &keyScanId, const double &time,
+                const pcl::PointCloud<pcl::PointXYZI> &fullRect, const pcl::PointCloud<pcl::PointXYZI> &lessSharpRect, const pcl::PointCloud<pcl::PointXYZI> &lessFlatRect,
+                const Eigen::Vector3d& translation,const Eigen::Quaterniond& quaternion) {
+    //ID
+    long long scanID = scanId;
+    long long keyScanID = keyScanId;
+    double scanTimestamp = time;
+
+    ofs.write(reinterpret_cast<const char*>(&scanID), sizeof(long long));
+    ofs.write(reinterpret_cast<const char*>(&keyScanID), sizeof(long long));
+    ofs.write(reinterpret_cast<const char*>(&scanTimestamp), sizeof(double));
+
+    //SubMap
+    int sizeOfSubMap = 0;
+    ofs.write(reinterpret_cast<const char*>(&sizeOfSubMap), sizeof(int));
+
+    //laserScanRect
+    int sizeOfRawScanRect = fullRect.points.size();
+    ofs.write(reinterpret_cast<const char*>(&sizeOfRawScanRect), sizeof(int));
+    for (auto p : fullRect.points) {
+        float x = p.x;
+        float y = p.y;
+        float z = p.z;
+        uint8_t intensity = p.intensity;
+        ofs.write(reinterpret_cast<const char*>(&x), sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(&y), sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(&z), sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(&intensity), sizeof(uint8_t));
+    }
+
+    //laserScanCornerRect
+    int sizeOfScanCornerRect = lessSharpRect.points.size();
+    ofs.write(reinterpret_cast<const char*>(&sizeOfScanCornerRect), sizeof(int));
+    for (auto p : lessSharpRect.points) {
+        float x = p.x;
+        float y = p.y;
+        float z = p.z;
+        uint8_t intensity = p.intensity;
+        ofs.write(reinterpret_cast<const char*>(&x), sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(&y), sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(&z), sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(&intensity), sizeof(uint8_t));
+    }
+
+    //laserScanSurfRect
+    int sizeOfScanSurfRect = lessFlatRect.points.size();
+    ofs.write(reinterpret_cast<const char*>(&sizeOfScanSurfRect), sizeof(int));
+    for (auto p : lessFlatRect.points) {
+        float x = p.x;
+        float y = p.y;
+        float z = p.z;
+        uint8_t intensity = p.intensity;
+        ofs.write(reinterpret_cast<const char*>(&x), sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(&y), sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(&z), sizeof(float));
+        ofs.write(reinterpret_cast<const char*>(&intensity), sizeof(uint8_t));
+    }
+
+    //T_W_B
+//    Eigen::Vector3d translation = poseMapp.pos.cast<double>();
+//    Eigen::Quaterniond quaternion = poseMapp.rot.cast<double>();
+    double tx = translation[0];
+    double ty = translation[1];
+    double tz = translation[2];
+    double qx = quaternion.x();
+    double qy = quaternion.y();
+    double qz = quaternion.z();
+    double qw = quaternion.w();
+    ofs.write(reinterpret_cast<const char*>(&tx), sizeof(double));
+    ofs.write(reinterpret_cast<const char*>(&ty), sizeof(double));
+    ofs.write(reinterpret_cast<const char*>(&tz), sizeof(double));
+    ofs.write(reinterpret_cast<const char*>(&qx), sizeof(double));
+    ofs.write(reinterpret_cast<const char*>(&qy), sizeof(double));
+    ofs.write(reinterpret_cast<const char*>(&qz), sizeof(double));
+    ofs.write(reinterpret_cast<const char*>(&qw), sizeof(double));
+
+    //GPSReadings
+    int sizeOfGPS = 0;
+    ofs.write(reinterpret_cast<const char*>(&sizeOfGPS), sizeof(int));
 }
 
 void process()
@@ -862,6 +975,13 @@ void process()
 			odomAftMapped.pose.pose.position.z = t_w_curr.z();
 			pubOdomAftMapped.publish(odomAftMapped);
 
+            if (rmapOut && (frameCount % savefreq == 0))
+            {
+                outputRMap(frameCount,keyscanID,timeLaserOdometry,*laserCloudFullRes,*laserCloudCornerLast,*laserCloudSurfLast,t_w_curr,q_w_curr);
+                keyscanID++;
+            }
+
+
 			geometry_msgs::PoseStamped laserAfterMappedPose;
 			laserAfterMappedPose.header = odomAftMapped.header;
 			laserAfterMappedPose.pose = odomAftMapped.pose.pose;
@@ -889,6 +1009,7 @@ void process()
         std::this_thread::sleep_for(dura);
 	}
 }
+
 
 void save_map()
 {
@@ -956,6 +1077,13 @@ int main(int argc, char **argv)
 	downSizeFilterSurf.setLeafSize(planeRes, planeRes, planeRes);
 
 	nh.getParam("out_path", strOut);
+	nh.param<int>("save_freq",savefreq,5);
+	nh.param<int>("rmap",rmapOut,0);
+
+	if(rmapOut)
+    {
+        initOutput();
+    }
 
 	ros::Subscriber subLaserCloudCornerLast = nh.subscribe<sensor_msgs::PointCloud2>("/laser_cloud_corner_last", 100, laserCloudCornerLastHandler);
 
