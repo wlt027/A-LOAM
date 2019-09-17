@@ -6,6 +6,7 @@
     <param name="mapping_skip_frame" type="int" value="1" />
 
     <!-- remove too closed points -->
+    <param name="fov" type="double" value="360" />
     <param name="minimum_range" type="double" value="3"/>
     <param name="lidar_num" type="int" value="1" />
     <param name="lidar_topic" type="string" value="/ns1/pandar_points" />

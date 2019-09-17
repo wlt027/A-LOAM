@@ -4,22 +4,22 @@
     <param name="mapping_skip_frame" type="int" value="1" />
 
     <!-- remove too closed points -->
-    <param name="fov" type="double" value="360" />
     <param name="minimum_range" type="double" value="1.5"/>
-    <param name="maximum_range" type="double" value="20"/>
-    <param name="lidar_topic" type="string" value="/lslidar_point_cloud" />
+    <param name="maximum_range" type="double" value="100"/>
+    <param name="lidar_topic" type="string" value="/lidar2/points_raw" />
+    <param name="fov" type="double" value="120" />
     <param name="lidar0_x" type="double" value=" 0.0000" />
     <param name="lidar0_y" type="double" value=" 0.0000" />
     <param name="lidar0_z" type="double" value=" 0.0000" />
     <param name="lidar0_rx" type="double" value="0.0" />
     <param name="lidar0_ry" type="double" value="0.0" />
     <param name="lidar0_rz" type="double" value="0.0" />
-    <param name="scan_line" type="int" value="16" />
+    <param name="scan_line" type="int" value="32" />
     <param name="lidar_num" type="int" value="1" />
 
     <param name="mapping_line_resolution" type="double" value="0.2"/>
     <param name="mapping_plane_resolution" type="double" value="0.4"/>
-    <param name="out_path" type="string" value="/home/wlt-zh/dataset/20190819/cruise_robot/process" />
+    <param name="out_path" type="string" value="/home/wlt-zh/dataset/20190905/process" />
     <param name="submap_binsize" type="int" value="40" />
 
     <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" />

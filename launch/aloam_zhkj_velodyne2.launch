@@ -9,23 +9,14 @@
     <param name="minimum_range" type="double" value="1.0"/>
     <param name="maximum_range" type="double" value="20"/>
     <param name="fov" type="double" value="360" />
-    <param name="lidar_num" type="int" value="2" />
-    <param name="lidar0_topic" type="string" value="/ns2/velodyne_points" />
-    <param name="lidar0_x" type="double" value="0.0" />
-    <param name="lidar0_y" type="double" value="0.0" />
-    <param name="lidar0_z" type="double" value="0.0" />
-    <param name="lidar0_rx" type="double" value="0" />
-    <param name="lidar0_ry" type="double" value="0" />
-    <param name="lidar0_rz" type="double" value="0" />
+    <param name="lidar_topic" type="string" value="/ns1/velodyne_points" />
+    <param name="lidar0_x" type="double" value="-0.237223" />
+    <param name="lidar0_y" type="double" value="-0.012805" />
+    <param name="lidar0_z" type="double" value="-0.122945" />
+    <param name="lidar0_rx" type="double" value="3.740153" />
+    <param name="lidar0_ry" type="double" value="-79.65381" />
+    <param name="lidar0_rz" type="double" value="-2.225454" />
     <param name="scan0_line" type="int" value="16" />
-    <param name="lidar1_topic" type="string" value="/ns1/velodyne_points" />
-    <param name="lidar1_x" type="double" value="-0.237223" />
-    <param name="lidar1_y" type="double" value="-0.012805" />
-    <param name="lidar1_z" type="double" value="-0.122945" />
-    <param name="lidar1_rx" type="double" value="3.740153" />
-    <param name="lidar1_ry" type="double" value="-79.65381" />
-    <param name="lidar1_rz" type="double" value="-2.225454" />
-    <param name="scan1_line" type="int" value="16" />
     <param name="imu_topic" type="string" value="/ins_imu" />
     <param name="imu_x" type="double" value="0.0" />
     <param name="imu_y" type="double" value="0.0" />
