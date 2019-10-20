@@ -5,7 +5,7 @@
 
     <!-- remove too closed points -->
     <param name="minimum_range" type="double" value="2.5"/>
-    <param name="maximum_range" type="double" value="80"/>
+    <param name="maximum_range" type="double" value="150"/>
     <param name="fov" type="double" value="360" />
     <param name="lidar_topic" type="string" value="/rslidar_points" />
     <param name="lidar0_x" type="double" value=" 0.047" />
@@ -26,7 +26,7 @@
 
     <param name="mapping_line_resolution" type="double" value="0.2"/>
     <param name="mapping_plane_resolution" type="double" value="0.4"/>
-    <param name="out_path" type="string" value="/home/wlt-zh/dataset/20190910/process" />
+    <param name="out_path" type="string" value="/home/wlt-zh/dataset/20190618beijing/process" />
     <param name="submap_binsize" type="int" value="40" />
     <param name="save_freq" type="int" value="5" />
     <param name="rmap" type="int" value="1" />
