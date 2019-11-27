@@ -8,12 +8,12 @@
     <param name="minimum_range" type="double" value="2.5"/>
     <param name="maximum_range" type="double" value="100"/>
     <param name="lidar_topic" type="string" value="/velodyne_points" />
-    <param name="lidar0_x" type="double" value=" 0.018484" />
-    <param name="lidar0_y" type="double" value=" -0.02694" />
+    <param name="lidar0_x" type="double" value=" -0.02694 " />
+    <param name="lidar0_y" type="double" value=" -0.018484" />
     <param name="lidar0_z" type="double" value=" 0.084680" />
-    <param name="lidar0_rx" type="double" value="0.668045" />
+    <param name="lidar0_rx" type="double" value="-0.358315" />
     <param name="lidar0_ry" type="double" value="0.751013" />
-    <param name="lidar0_rz" type="double" value="89.641685" />
+    <param name="lidar0_rz" type="double" value="0.668045" />
     <param name="scan_line" type="int" value="16" />
     <param name="lidar_num" type="int" value="1" />
     <param name="imu_topic" type="string" value="/ins_imu" />
@@ -24,10 +24,20 @@
     <param name="imu_ry" type="double" value="0.0" />
     <param name="imu_rz" type="double" value="-90.0" />
 
+    <param name="gps_x" type="double" value="-0.2370" />
+    <param name="gps_y" type="double" value="0.0757" />
+    <param name="gps_z" type="double" value="0.0028" />
+    <param name="gps_rx" type="double" value="0.0" />
+    <param name="gps_ry" type="double" value="0.0" />
+    <param name="gps_rz" type="double" value="90.0" />
+
     <param name="mapping_line_resolution" type="double" value="0.4"/>
     <param name="mapping_plane_resolution" type="double" value="0.4"/>
-    <param name="out_path" type="string" value="/home/wlt-zh/dataset/20190806/process" />
+    <param name="out_path" type="string" value="/home/zhihui/dataset/20191124/process" />
     <param name="submap_binsize" type="int" value="20" />
+    <param name="save_freq" type="int" value="4" />
+    <param name="rmap" type="int" value="1" />
+    <param name="gpsout" type="int" value="0" />
 
     <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration" output="screen" />
 

@@ -48,6 +48,8 @@
 #include <ros/ros.h>
 #include <sensor_msgs/Imu.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/NavSatFix.h>
+
 #include <std_msgs/Bool.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
@@ -58,17 +60,20 @@
 #include <thread>
 #include <iostream>
 #include <string>
+#include <tuple>
 
 #include "lidarFactor.hpp"
 #include "aloam_velodyne/common.h"
 #include "aloam_velodyne/tic_toc.h"
 
+#include "aloam_velodyne/CircularBuffer.h"
 #include <fstream>
 
 int frameCount = 0;
 int keyscanID = 0;
 int savefreq = 5;
 int rmapOut = 0;
+int nGPS = 0;
 
 double timeLaserCloudCornerLast = 0;
 double timeLaserCloudSurfLast = 0;
@@ -87,12 +92,46 @@ const int laserCloudNum = laserCloudWidth * laserCloudHeight * laserCloudDepth; 
 int laserCloudValidInd[125];
 int laserCloudSurroundInd[125];
 
+class GPSReading {
+public:
+
+    enum COV_TYPE {
+        COVARIANCE_TYPE_UNKNOWN = 0u,
+        COVARIANCE_TYPE_APPROXIMATED = 1u,
+        COVARIANCE_TYPE_DIAGONAL_KNOWN = 2u,
+        COVARIANCE_TYPE_KNOWN = 3u,
+    };
+
+    enum FIX_TYPE {
+        STATUS_NO_FIX = -1,
+        STATUS_FIX = 0,
+        STATUS_SBAS_FIX = 1,
+        STATUS_GBAS_FIX = 2
+    };
+
+    double timestamp;
+    Eigen::Vector3d lla;
+    Eigen::Matrix3d covariance;
+    COV_TYPE cov_type;
+    FIX_TYPE fix_type;
+    double heading;
+    double headingCov;
+
+public:
+    EIGEN_MAKE_ALIGNED_OPERATOR_NEW
+};
+
 // input: from odom
 pcl::PointCloud<PointType>::Ptr laserCloudCornerLast(new pcl::PointCloud<PointType>());
 pcl::PointCloud<PointType>::Ptr laserCloudSurfLast(new pcl::PointCloud<PointType>());
 
 // ouput: all visualble cube points
 pcl::PointCloud<PointType>::Ptr laserCloudSurround(new pcl::PointCloud<PointType>());
+
+int nSubmapBinSize = 0;
+
+//std::queue<pcl::PointCloud<pcl::PointXYZI>> submap;
+alive::CircularBuffer<pcl::PointCloud<pcl::PointXYZI>> submap{10};
 
 // surround points in map to build tree
 pcl::PointCloud<PointType>::Ptr laserCloudCornerFromMap(new pcl::PointCloud<PointType>());
@@ -125,6 +164,10 @@ std::queue<sensor_msgs::PointCloud2ConstPtr> cornerLastBuf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> surfLastBuf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> fullResBuf;
 std::queue<nav_msgs::Odometry::ConstPtr> odometryBuf;
+std::queue<GPSReading> gpsBuf;
+
+std::queue<std::tuple<int,int,double,pcl::PointCloud<pcl::PointXYZI>,pcl::PointCloud<pcl::PointXYZI>,pcl::PointCloud<pcl::PointXYZI>,Eigen::Vector3d,Eigen::Quaterniond,std::vector<GPSReading>>> key_scan_buf;
+
 std::mutex mBuf;
 std::mutex mSave;
 
@@ -143,30 +186,6 @@ nav_msgs::Path laserAfterMappedPath;
 std::string strOut;
 
 std::ofstream ofs;
-
-void initOutput() {
-    if (1) {
-        ofs.open(strOut + "/global.rmap", std::ios::binary);
-        double PBG0, PBG1, PBG2;
-        double RBG00, RBG01, RBG02, RBG10, RBG11, RBG12, RBG20, RBG21, RBG22;
-        PBG0 = PBG1 = PBG2 = 0.0;
-        RBG00 = RBG01 = RBG02 = RBG10 = RBG11 = RBG12 = RBG20 = RBG21 = RBG22 = 0.0;
-
-        ofs.write(reinterpret_cast<const char*>(&PBG0), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&PBG1), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&PBG2), sizeof(double));
-
-        ofs.write(reinterpret_cast<const char*>(&RBG00), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&RBG01), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&RBG02), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&RBG10), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&RBG11), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&RBG12), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&RBG20), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&RBG21), sizeof(double));
-        ofs.write(reinterpret_cast<const char*>(&RBG22), sizeof(double));
-    }
-}
 
 // set initial guess
 void transformAssociateToMap()
@@ -260,7 +279,7 @@ void laserOdometryHandler(const nav_msgs::Odometry::ConstPtr &laserOdometry)
 
 void outputRMap(const int &scanId, const int &keyScanId, const double &time,
                 const pcl::PointCloud<pcl::PointXYZI> &fullRect, const pcl::PointCloud<pcl::PointXYZI> &lessSharpRect, const pcl::PointCloud<pcl::PointXYZI> &lessFlatRect,
-                const Eigen::Vector3d& translation,const Eigen::Quaterniond& quaternion) {
+                const Eigen::Vector3d& translation,const Eigen::Quaterniond& quaternion,std::vector<GPSReading>& gpsVec) {
     //ID
     long long scanID = scanId;
     long long keyScanID = keyScanId;
@@ -335,8 +354,81 @@ void outputRMap(const int &scanId, const int &keyScanId, const double &time,
     ofs.write(reinterpret_cast<const char*>(&qw), sizeof(double));
 
     //GPSReadings
-    int sizeOfGPS = 0;
+    int sizeOfGPS = gpsVec.size();
     ofs.write(reinterpret_cast<const char*>(&sizeOfGPS), sizeof(int));
+
+    for (auto p : gpsVec) {
+
+        double timestamp;
+        Eigen::Vector3d lla;
+        Eigen::Matrix3d covariance;
+        GPSReading::COV_TYPE cov_type;
+        GPSReading::FIX_TYPE fix_type;
+        double heading;
+        double headingCov;
+
+        ofs.write(reinterpret_cast<const char*>(&p.timestamp), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.lla(0)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.lla(1)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.lla(2)), sizeof(double));
+
+        ofs.write(reinterpret_cast<const char*>(&p.covariance(0,0)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.covariance(0,1)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.covariance(0,2)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.covariance(1,0)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.covariance(1,1)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.covariance(1,2)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.covariance(2,0)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.covariance(2,1)), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.covariance(2,2)), sizeof(double));
+
+        ofs.write(reinterpret_cast<const char*>(&p.cov_type), sizeof(char));
+        ofs.write(reinterpret_cast<const char*>(&p.fix_type), sizeof(char));
+        ofs.write(reinterpret_cast<const char*>(&p.heading), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&p.headingCov), sizeof(double));
+
+    }
+}
+
+void save()
+{
+    while(1)
+    {
+        while (!key_scan_buf.empty())
+        {
+            mSave.lock();
+
+            outputRMap(std::get<0>(key_scan_buf.front()), std::get<1>(key_scan_buf.front()), std::get<2>(key_scan_buf.front()), std::get<3>(key_scan_buf.front()), std::get<4>(key_scan_buf.front()),
+                       std::get<5>(key_scan_buf.front()), std::get<6>(key_scan_buf.front()), std::get<7>(key_scan_buf.front()), std::get<8>(key_scan_buf.front()));
+
+            std::string str = strOut + "/submap-" + std::to_string(keyscanID) + ".txt";
+
+            FILE *pFile = fopen(str.data(), "w");
+
+            // output timestamp first
+//                fprintf(pFile, "%lf,%d\n", timeLaserOdometry, frameCount);
+
+            if (pFile) {
+                for (int i = 0; i < submap.size(); i++) {
+                    pcl::PointCloud<pcl::PointXYZI> pcl = submap[i];
+
+                    for (int j = 0; j < pcl.size(); j++) {
+                        pcl::PointXYZI &pt = pcl[j];
+
+                        fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
+                    }
+                }
+
+                fclose(pFile);
+            }
+
+            key_scan_buf.pop();
+
+            mSave.unlock();
+        }
+        std::chrono::milliseconds dura(2);
+        std::this_thread::sleep_for(dura);
+    }
 }
 
 void process()
@@ -414,6 +506,23 @@ void process()
 			}
 
 			mBuf.unlock();
+
+			std::vector<GPSReading> vecGPS;
+			if(nGPS > 0)
+            {
+			    mBuf.lock();
+
+                printf("gps buffer %d \n",gpsBuf.size());
+                printf("gps time %lf %lf\n",gpsBuf.front().timestamp,timeLaserOdometry);
+                while (!gpsBuf.empty() && gpsBuf.front().timestamp < timeLaserOdometry)
+                {
+                    vecGPS.push_back(gpsBuf.front());
+                    printf("add gps time %lf \n",gpsBuf.front().timestamp);
+                    gpsBuf.pop();
+                }
+
+			    mBuf.unlock();
+            }
 
 			TicToc t_whole;
 
@@ -975,12 +1084,42 @@ void process()
 			odomAftMapped.pose.pose.position.z = t_w_curr.z();
 			pubOdomAftMapped.publish(odomAftMapped);
 
-            if (rmapOut && (frameCount % savefreq == 0))
+            if (rmapOut && frameCount > 0 && (frameCount % savefreq == 0))
             {
-                outputRMap(frameCount,keyscanID,timeLaserOdometry,*laserCloudFullRes,*laserCloudCornerLast,*laserCloudSurfLast,t_w_curr,q_w_curr);
-                keyscanID++;
-            }
+                mSave.lock();
+                key_scan_buf.push(std::make_tuple(frameCount,keyscanID,timeLaserOdometry,*laserCloudFullRes,*laserCloudCornerLast,*laserCloudSurfLast,t_w_curr,q_w_curr,vecGPS));
+                mSave.unlock();
 
+//                outputRMap(frameCount,keyscanID,timeLaserOdometry,*laserCloudFullRes,*laserCloudCornerLast,*laserCloudSurfLast,t_w_curr,q_w_curr,vecGPS);
+//
+//                std::string str = strOut + "/submap-" + std::to_string(keyscanID) + ".txt";
+//
+//                FILE *pFile = fopen(str.data(), "w");
+//
+//                // output timestamp first
+////                fprintf(pFile, "%lf,%d\n", timeLaserOdometry, frameCount);
+//
+//                if (pFile) {
+//                    for (int i = 0; i < submap.size(); i++) {
+//                        pcl::PointCloud<pcl::PointXYZI> pcl = submap[i];
+//
+//                        for (int j = 0; j < pcl.size(); j++) {
+//                            pcl::PointXYZI &pt = pcl[j];
+//
+//                            fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
+//                        }
+//                    }
+//
+//                    fclose(pFile);
+//                }
+
+                keyscanID++;
+            } else
+            {
+                pcl::PointCloud<pcl::PointXYZI> pcd;
+                pcl::copyPointCloud(*laserCloudFullRes,pcd);
+                submap.push(pcd);
+            }
 
 			geometry_msgs::PoseStamped laserAfterMappedPose;
 			laserAfterMappedPose.header = odomAftMapped.header;
@@ -1046,6 +1185,58 @@ void save_callback(const std_msgs::BoolConstPtr &restart_msg)
 	ROS_INFO("save map done!");
 }
 
+void gpsfixCallback(const sensor_msgs::NavSatFix::ConstPtr &gpsfix)
+{
+    if(nGPS != 1)
+        return;
+    GPSReading gps;
+
+    gps.timestamp = gpsfix->header.stamp.toSec();
+    gps.lla[0] = gpsfix->latitude;
+    gps.lla[1] = gpsfix->longitude;
+    gps.lla[2] = gpsfix->altitude;
+    gps.covariance(0, 0) = gpsfix->position_covariance[0];
+    gps.covariance(0, 1) = gpsfix->position_covariance[1];
+    gps.covariance(0, 2) = gpsfix->position_covariance[2];
+    gps.covariance(1, 0) = gpsfix->position_covariance[3];
+    gps.covariance(1, 1) = gpsfix->position_covariance[4];
+    gps.covariance(1, 2) = gpsfix->position_covariance[5];
+    gps.covariance(2, 0) = gpsfix->position_covariance[6];
+    gps.covariance(2, 1) = gpsfix->position_covariance[7];
+    gps.covariance(2, 2) = gpsfix->position_covariance[8];
+    gps.fix_type = (GPSReading::FIX_TYPE) gpsfix->status.status;
+    gps.cov_type = (GPSReading::COV_TYPE) gpsfix->position_covariance_type;
+
+    gpsBuf.push(gps);
+}
+
+void gpsodomCallback(const nav_msgs::Odometry::ConstPtr &gps_odo)
+{
+    if(nGPS != 2)
+        return;
+
+    GPSReading gps;
+
+    gps.timestamp = gps_odo->header.stamp.toSec();
+
+    gps.lla[0] = gps_odo->pose.pose.position.x;
+    gps.lla[1] = gps_odo->pose.pose.position.y;
+    gps.lla[2] = gps_odo->pose.pose.position.z;
+    gps.covariance(0, 0) = gps_odo->pose.covariance[1]*gps_odo->pose.covariance[1];
+    gps.covariance(0, 1) = 0;
+    gps.covariance(0, 2) = 0;
+    gps.covariance(1, 0) = 0;
+    gps.covariance(1, 1) = gps_odo->pose.covariance[2]*gps_odo->pose.covariance[2];
+    gps.covariance(1, 2) = 0;
+    gps.covariance(2, 0) = 0;
+    gps.covariance(2, 1) = 0;
+    gps.covariance(2, 2) = gps_odo->pose.covariance[3]*gps_odo->pose.covariance[3];
+    gps.fix_type = (GPSReading::FIX_TYPE::STATUS_FIX);
+    gps.cov_type = (GPSReading::COV_TYPE::COVARIANCE_TYPE_DIAGONAL_KNOWN);
+
+    gpsBuf.push(gps);
+}
+
 void command()
 {
 	while(1)
@@ -1079,10 +1270,94 @@ int main(int argc, char **argv)
 	nh.getParam("out_path", strOut);
 	nh.param<int>("save_freq",savefreq,5);
 	nh.param<int>("rmap",rmapOut,0);
+    nh.param<int>("gpsout", nGPS, 0);
+
+    printf("rmap %d \n", rmapOut);
+    printf("gpsout %d \n", nGPS);
+
+    nh.param<int>("submap_binsize",nSubmapBinSize,20);
 
 	if(rmapOut)
     {
-        initOutput();
+        ofs.open(strOut + "/global.rmap", std::ios::binary);
+        double PBG0, PBG1, PBG2;
+        double RBG00, RBG01, RBG02, RBG10, RBG11, RBG12, RBG20, RBG21, RBG22;
+        PBG0 = PBG1 = PBG2 = 0.0;
+        RBG00 = RBG01 = RBG02 = RBG10 = RBG11 = RBG12 = RBG20 = RBG21 = RBG22 = 0.0;
+
+        if(nGPS > 0)
+        {
+            double tmpx,tmpy,tmpz;
+
+            nh.param<double>("imu_x",tmpx,0);
+            nh.param<double>("imu_y",tmpy,0);
+            nh.param<double>("imu_z",tmpz,0);
+
+            Eigen::Vector3d PBI(tmpx,tmpy,tmpz);
+
+            nh.param<double>("imu_rx",tmpx,0);
+            nh.param<double>("imu_ry",tmpy,0);
+            nh.param<double>("imu_rz",tmpz,0);
+
+            Eigen::Quaterniond QBI = Eigen::Quaterniond(Eigen::AngleAxisd(tmpz * M_PI / 180.0f, Eigen::Vector3d::UnitZ())
+                                                        * Eigen::AngleAxisd(tmpy * M_PI / 180.0f, Eigen::Vector3d::UnitY())
+                                                        * Eigen::AngleAxisd(tmpx * M_PI / 180.0f, Eigen::Vector3d::UnitX()));
+
+            Eigen::Matrix3d RBI = QBI.toRotationMatrix();
+
+            nh.param<double>("gps_x",tmpx,0);
+            nh.param<double>("gps_y",tmpy,0);
+            nh.param<double>("gps_z",tmpz,0);
+
+            Eigen::Vector3d PIG(tmpx,tmpy,tmpz);
+
+            nh.param<double>("gps_rx",tmpx,0);
+            nh.param<double>("gps_ry",tmpy,0);
+            nh.param<double>("gps_rz",tmpz,0);
+
+            Eigen::Quaterniond QIG = Eigen::Quaterniond(Eigen::AngleAxisd(tmpz * M_PI / 180.0f, Eigen::Vector3d::UnitZ())
+                                                        * Eigen::AngleAxisd(tmpy * M_PI / 180.0f, Eigen::Vector3d::UnitY())
+                                                        * Eigen::AngleAxisd(tmpx * M_PI / 180.0f, Eigen::Vector3d::UnitX()));
+
+            Eigen::Matrix3d RIG = QIG.toRotationMatrix();
+
+            // from gps to body
+            Eigen::Vector3d PBG = RBI * PIG + PBI;
+            Eigen::Matrix3d RBG = RBI * RIG;
+
+            PBG0 = PBG(0);
+            PBG1 = PBG(1);
+            PBG2 = PBG(2);
+
+            RBG00 = RBG(0,0);
+            RBG01 = RBG(0,1);
+            RBG02 = RBG(0,2);
+            RBG10 = RBG(1,0);
+            RBG11 = RBG(1,1);
+            RBG12 = RBG(1,2);
+            RBG20 = RBG(2,0);
+            RBG21 = RBG(2,1);
+            RBG22 = RBG(2,2);
+        }
+
+        printf("PBG %f %f %f \n", PBG0, PBG1, PBG2);
+        printf("RBG:%lf,%lf,%lf\n", RBG00, RBG01, RBG02);
+        printf("RBG:%lf,%lf,%lf\n", RBG10, RBG11, RBG12);
+        printf("RBG:%lf,%lf,%lf\n", RBG20, RBG21, RBG22);
+
+        ofs.write(reinterpret_cast<const char*>(&PBG0), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&PBG1), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&PBG2), sizeof(double));
+
+        ofs.write(reinterpret_cast<const char*>(&RBG00), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG01), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG02), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG10), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG11), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG12), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG20), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG21), sizeof(double));
+        ofs.write(reinterpret_cast<const char*>(&RBG22), sizeof(double));
     }
 
 	ros::Subscriber subLaserCloudCornerLast = nh.subscribe<sensor_msgs::PointCloud2>("/laser_cloud_corner_last", 100, laserCloudCornerLastHandler);
@@ -1094,6 +1369,9 @@ int main(int argc, char **argv)
 	ros::Subscriber subLaserCloudFullRes = nh.subscribe<sensor_msgs::PointCloud2>("/velodyne_cloud_3", 100, laserCloudFullResHandler);
 
 	ros::Subscriber sub_save = nh.subscribe("/save", 5, save_callback);
+
+    ros::Subscriber sub3 = nh.subscribe("/GPS_fix", 5, gpsfixCallback);
+    ros::Subscriber sub6 = nh.subscribe("/GPS_odom",5, gpsodomCallback);
 
 	pubLaserCloudSurround = nh.advertise<sensor_msgs::PointCloud2>("/laser_cloud_surround", 100);
 
@@ -1114,6 +1392,7 @@ int main(int argc, char **argv)
 	}
 
 	std::thread mapping_process{process};
+	std::thread saving_process{save};
 
 	std::thread keyboard_command_process;
 	keyboard_command_process = std::thread(command);

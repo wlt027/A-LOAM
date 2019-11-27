@@ -178,7 +178,7 @@ namespace vis {
 
         int nScanCount;
 
-        int nSaveFreq;
+//        int nSaveFreq;
 
         // body trajectory
         std::vector<std::pair<double,traj_point>> mTraj;
@@ -189,10 +189,10 @@ namespace vis {
 
         ColorRamp ramp;
 
-        int nSubmapBinSize;
-        int nSubmapCount;
-
-        vector<pcl::PointCloud<pcl::PointXYZI>> submap;
+//        int nSubmapBinSize;
+//        int nSubmapCount;
+//
+//        vector<pcl::PointCloud<pcl::PointXYZI>> submap;
 
     public:
         EIGEN_MAKE_ALIGNED_OPERATOR_NEW

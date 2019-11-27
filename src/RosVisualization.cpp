@@ -47,10 +47,10 @@ namespace vis {
 
         initQ = Eigen::Quaterniond(1,0,0,0);
 
-        nSaveFreq = 1;
-
-        nSubmapBinSize = 0;
-        nSubmapCount = 0;
+//        nSaveFreq = 1;
+//
+//        nSubmapBinSize = 0;
+//        nSubmapCount = 0;
     }
 
     bool RosVisualization::setup(ros::NodeHandle &node, ros::NodeHandle &privateNode) {
@@ -81,9 +81,9 @@ namespace vis {
 
         node.getParam("out_path", strOut);
 
-        node.param<int>("save_freq", nSaveFreq, 1);
+//        node.param<int>("save_freq", nSaveFreq, 1);
 
-        node.param<int>("submap_binsize",nSubmapBinSize,20);
+        //node.param<int>("submap_binsize",nSubmapBinSize,20);
 
         return true;
     }
@@ -107,35 +107,35 @@ namespace vis {
         save_flag.data = true;
         _pubSave.publish(save_flag);
 
-        if(!strOut.empty() && nSubmapBinSize > 0 && submap.size() > 0)
-        {
-            std::string str = strOut + "/submap-" + std::to_string(nSubmapCount) + ".txt";
-
-            FILE *pFile = fopen(str.data(), "w");
-
-            // output timestamp first
-            double tm = curT;
-
-            fprintf(pFile,"%lf,%d\n",tm,nScanCount);
-
-            if (pFile) {
-                for (int i = 0; i < submap.size(); i++) {
-                    pcl::PointCloud<pcl::PointXYZI>& pcl = submap[i];
-
-                    for(int j = 0; j < pcl.size();j++) {
-                        pcl::PointXYZI &pt = pcl[j];
-
-                        fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
-                    }
-                }
-
-                fclose(pFile);
-            }
-
-            submap.clear();
-
-            nSubmapCount++;
-        }
+//        if(!strOut.empty() && nSubmapBinSize > 0 && submap.size() > 0)
+//        {
+//            std::string str = strOut + "/submap-" + std::to_string(nSubmapCount) + ".txt";
+//
+//            FILE *pFile = fopen(str.data(), "w");
+//
+//            // output timestamp first
+//            double tm = curT;
+//
+//            fprintf(pFile,"%lf,%d\n",tm,nScanCount);
+//
+//            if (pFile) {
+//                for (int i = 0; i < submap.size(); i++) {
+//                    pcl::PointCloud<pcl::PointXYZI>& pcl = submap[i];
+//
+//                    for(int j = 0; j < pcl.size();j++) {
+//                        pcl::PointXYZI &pt = pcl[j];
+//
+//                        fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
+//                    }
+//                }
+//
+//                fclose(pFile);
+//            }
+//
+//            submap.clear();
+//
+//            nSubmapCount++;
+//        }
         
     }
 
@@ -562,83 +562,83 @@ namespace vis {
                 pt.z = pt_w(2);
             }
 
-            if(!strOut.empty() && nScanCount % nSaveFreq == 0 && 0)
-            {
-                {
-                    std::string str = strOut + "/map.txt";
+//            if(!strOut.empty() && nScanCount % nSaveFreq == 0 && 0)
+//            {
+//                {
+//                    std::string str = strOut + "/map.txt";
+//
+//                    if(!m_bOutputMap)
+//                    {
+//                        m_bOutputMap = true;
+//                        FILE* pFile = fopen(str.data(),"w");
+//
+//                        if(pFile)
+//                        {
+//                            for(int i = 0; i< _laserCloudFullRes->size();i++)
+//                            {
+//                                pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
+//
+//                                fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+//                            }
+//                            fclose(pFile);
+//                        }
+//
+//                    }
+//                    else
+//                    {
+//                        FILE* pFile = fopen(str.data(),"at");
+//
+//                        if(pFile)
+//                        {
+//                            for(int i = 0; i< _laserCloudFullRes->size();i++)
+//                            {
+//                                pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
+//
+//                                fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
+//                            }
+//                            fclose(pFile);
+//                        }
+//                    }
+//                }
+//            }
 
-                    if(!m_bOutputMap)
-                    {
-                        m_bOutputMap = true;
-                        FILE* pFile = fopen(str.data(),"w");
-
-                        if(pFile)
-                        {
-                            for(int i = 0; i< _laserCloudFullRes->size();i++)
-                            {
-                                pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
-
-                                fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
-                            }
-                            fclose(pFile);
-                        }
-
-                    }
-                    else
-                    {
-                        FILE* pFile = fopen(str.data(),"at");
-
-                        if(pFile)
-                        {
-                            for(int i = 0; i< _laserCloudFullRes->size();i++)
-                            {
-                                pcl::PointXYZI& pt = (*_laserCloudFullRes)[i];
-
-                                fprintf(pFile,"%f,%f,%f,%f\n",pt.x,pt.y,pt.z,pt.intensity);
-                            }
-                            fclose(pFile);
-                        }
-                    }
-                }
-            }
-
-            if(!strOut.empty() && nSubmapBinSize > 0)
-            {
-                if(nScanCount % nSubmapBinSize == 0 && nScanCount > 0)
-                {
-                    std::string str = strOut + "/submap-" + std::to_string(nSubmapCount) + ".txt";
-
-                    FILE *pFile = fopen(str.data(), "w");
-
-                    // output timestamp first
-                    double tm = laserCloudFullResMsg->header.stamp.toSec();
-
-                    fprintf(pFile,"%lf,%d\n",tm,nScanCount);
-
-                    if (pFile) {
-                        for (int i = 0; i < submap.size(); i++) {
-                            pcl::PointCloud<pcl::PointXYZI>& pcl = submap[i];
-
-                            for(int j = 0; j < pcl.size();j++) {
-                                pcl::PointXYZI &pt = pcl[j];
-
-                                fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
-                            }
-                        }
-
-                        fclose(pFile);
-                    }
-
-                    submap.clear();
-
-                    nSubmapCount++;
-
-                } else{
-                    pcl::PointCloud<pcl::PointXYZI> pcd;
-                    pcl::copyPointCloud(*_laserCloudFullRes,pcd);
-                    submap.push_back(pcd);
-                }
-            }
+//            if(!strOut.empty() && nSubmapBinSize > 0)
+//            {
+//                if(nScanCount % nSubmapBinSize == 0 && nScanCount > 0)
+//                {
+//                    std::string str = strOut + "/submap-" + std::to_string(nSubmapCount) + ".txt";
+//
+//                    FILE *pFile = fopen(str.data(), "w");
+//
+//                    // output timestamp first
+//                    double tm = laserCloudFullResMsg->header.stamp.toSec();
+//
+//                    fprintf(pFile,"%lf,%d\n",tm,nScanCount);
+//
+//                    if (pFile) {
+//                        for (int i = 0; i < submap.size(); i++) {
+//                            pcl::PointCloud<pcl::PointXYZI>& pcl = submap[i];
+//
+//                            for(int j = 0; j < pcl.size();j++) {
+//                                pcl::PointXYZI &pt = pcl[j];
+//
+//                                fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
+//                            }
+//                        }
+//
+//                        fclose(pFile);
+//                    }
+//
+//                    submap.clear();
+//
+//                    nSubmapCount++;
+//
+//                } else{
+//                    pcl::PointCloud<pcl::PointXYZI> pcd;
+//                    pcl::copyPointCloud(*_laserCloudFullRes,pcd);
+//                    submap.push_back(pcd);
+//                }
+//            }
 
             nScanCount++;
             mutex_laser_cloud_.unlock();
