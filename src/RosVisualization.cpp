@@ -340,8 +340,8 @@ namespace vis {
 
                 float height = pt.z;
                 float minZ = -1;
-                float maxZ = 19;
-                float fStep = 2;
+                float maxZ = 9;
+                float fStep = 1;
                 u8 a, r, g, b;
 
                 if (height < minZ) {
