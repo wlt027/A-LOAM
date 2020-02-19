@@ -5,7 +5,7 @@
 
     <!-- remove too closed points -->
     <param name="fov" type="double" value="360" />
-    <param name="minimum_range" type="double" value="2.5"/>
+    <param name="minimum_range" type="double" value="1.5"/>
     <param name="maximum_range" type="double" value="100"/>
     <param name="lidar_topic" type="string" value="/velodyne_points" />
     <param name="lidar0_x" type="double" value=" -0.02694 " />
@@ -33,7 +33,7 @@
 
     <param name="mapping_line_resolution" type="double" value="0.4"/>
     <param name="mapping_plane_resolution" type="double" value="0.4"/>
-    <param name="out_path" type="string" value="/home/zhihui/dataset/20191124/process" />
+    <param name="out_path" type="string" value="/home/wlt027/dataset/20200109/process" />
     <param name="submap_binsize" type="int" value="20" />
     <param name="save_freq" type="int" value="4" />
     <param name="rmap" type="int" value="1" />

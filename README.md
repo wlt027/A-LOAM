@@ -30,13 +30,16 @@ Follow [Ceres Installation](http://ceres-solver.org/installation.html).
 Follow [PCL Installation](http://www.pointclouds.org/downloads/linux.html).
 
 
-## 2. Build A-LOAM
+## 2. Build A-LOAM-zhkj
 Clone the repository and catkin_make:
 
 ```
     cd ~/catkin_ws/src
-    git clone https://github.com/HKUST-Aerial-Robotics/A-LOAM.git
-    cd ../
+    git clone https://github.com/wlt027/A-LOAM.git
+    cd A-LOAM/
+    git submodule update --init --recursive
+    bash ./build_submodule.sh
+    cd ../..
     catkin_make
     source ~/catkin_ws/devel/setup.bash
 ```
