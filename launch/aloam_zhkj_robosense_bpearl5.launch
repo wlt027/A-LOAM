@@ -1,0 +1,43 @@
+<launch>
+
+    <!-- if 1, do mapping 10 Hz, if 2, do mapping 5 Hz. Suggest to use 1, it will adjust frequence automaticlly -->
+    <param name="mapping_skip_frame" type="int" value="1" />
+
+    <!-- remove too closed points -->
+    <param name="minimum_range" type="double" value="0.5"/>
+    <param name="maximum_range" type="double" value="30"/>
+    <param name="fov" type="double" value="90" />
+    <param name="lidar_topic" type="string" value="/horizontal_laser_3d" />
+    <param name="lidar0_x" type="double" value=" 0.0000" />
+    <param name="lidar0_y" type="double" value=" 0.0000" />
+    <param name="lidar0_z" type="double" value=" 0.000" />
+    <param name="lidar0_rx" type="double" value="0.0" />
+    <param name="lidar0_ry" type="double" value="90.0" />
+    <param name="lidar0_rz" type="double" value="180.0" />
+    <param name="scan_line" type="int" value="32" />
+    <param name="lidar_num" type="int" value="1" />
+    <param name="imu_topic" type="string" value="/imu" />
+    <param name="imu_x" type="double" value="0.0" />
+    <param name="imu_y" type="double" value="0.0" />
+    <param name="imu_z" type="double" value="0.0" />
+    <param name="imu_rx" type="double" value="0.0" />
+    <param name="imu_ry" type="double" value="0.0" />
+    <param name="imu_rz" type="double" value="0.0" />
+
+    <param name="mapping_line_resolution" type="double" value="0.2"/>
+    <param name="mapping_plane_resolution" type="double" value="0.4"/>
+    <param name="out_path" type="string" value="" />
+    <param name="submap_binsize" type="int" value="40" />
+    <param name="save_freq" type="int" value="5" />
+    <param name="keyframe_dis" type="double" value="0.3" />
+    <param name="rmap" type="int" value="0" />
+
+    <node pkg="aloam_velodyne" type="ascanRegistration" name="ascanRegistration_bpearl" output="screen" />
+
+    <node pkg="aloam_velodyne" type="alaserOdometry" name="alaserOdometry" output="screen" />
+
+    <node pkg="aloam_velodyne" type="alaserMapping" name="alaserMapping" output="screen" />
+
+    <node pkg="aloam_velodyne" type="visualizer"    name="visualizer"    output="screen"/>
+
+</launch>

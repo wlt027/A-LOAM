@@ -129,6 +129,7 @@ pcl::PointCloud<PointType>::Ptr laserCloudSurfLast(new pcl::PointCloud<PointType
 pcl::PointCloud<PointType>::Ptr laserCloudSurround(new pcl::PointCloud<PointType>());
 
 int nSubmapBinSize = 0;
+double keyframe_dis = 1;
 
 //std::queue<pcl::PointCloud<pcl::PointXYZI>> submap;
 alive::CircularBuffer<pcl::PointCloud<pcl::PointXYZI>> submap{10};
@@ -152,6 +153,8 @@ double parameters[7] = {0, 0, 0, 1, 0, 0, 0};
 Eigen::Map<Eigen::Quaterniond> q_w_curr(parameters);
 Eigen::Map<Eigen::Vector3d> t_w_curr(parameters + 4);
 
+Eigen::Vector3d t_w_pre(0, 0, 0);
+
 // wmap_T_odom * odom_T_curr = wmap_T_curr;
 // transformation between odom's world and map's world frame
 Eigen::Quaterniond q_wmap_wodom(1, 0, 0, 0);
@@ -159,6 +162,7 @@ Eigen::Vector3d t_wmap_wodom(0, 0, 0);
 
 Eigen::Quaterniond q_wodom_curr(1, 0, 0, 0);
 Eigen::Vector3d t_wodom_curr(0, 0, 0);
+
 
 std::queue<sensor_msgs::PointCloud2ConstPtr> cornerLastBuf;
 std::queue<sensor_msgs::PointCloud2ConstPtr> surfLastBuf;
@@ -400,28 +404,53 @@ void save()
 
             outputRMap(std::get<0>(key_scan_buf.front()), std::get<1>(key_scan_buf.front()), std::get<2>(key_scan_buf.front()), std::get<3>(key_scan_buf.front()), std::get<4>(key_scan_buf.front()),
                        std::get<5>(key_scan_buf.front()), std::get<6>(key_scan_buf.front()), std::get<7>(key_scan_buf.front()), std::get<8>(key_scan_buf.front()));
+			
+			// void outputRMap(const int &scanId, const int &keyScanId, const double &time,
+            //     const pcl::PointCloud<pcl::PointXYZI> &fullRect, const pcl::PointCloud<pcl::PointXYZI> &lessSharpRect, const pcl::PointCloud<pcl::PointXYZI> &lessFlatRect,
+            //     const Eigen::Vector3d& translation,const Eigen::Quaterniond& quaternion,std::vector<GPSReading>& gpsVec)
+			if(1)
+			{
+				std::string str = strOut + "/keyscan-" + std::to_string(std::get<0>(key_scan_buf.front())) + ".txt";
 
-            std::string str = strOut + "/submap-" + std::to_string(keyscanID) + ".txt";
+				FILE *pFile = fopen(str.data(), "w");
 
-            FILE *pFile = fopen(str.data(), "w");
+				if (pFile) {
+					for (int i = 0; i < std::get<3>(key_scan_buf.front()).size(); i++) {
+					
+						pcl::PointXYZI &pt = std::get<3>(key_scan_buf.front())[i];
 
-            // output timestamp first
-//                fprintf(pFile, "%lf,%d\n", timeLaserOdometry, frameCount);
+						fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
+						
+					}
 
-            if (pFile) {
-                for (int i = 0; i < submap.size(); i++) {
-                    pcl::PointCloud<pcl::PointXYZI> pcl = submap[i];
+					fclose(pFile);
+				}
+			}
+			// save submap
+			if(0)
+			{
+				std::string str = strOut + "/submap-" + std::to_string(keyscanID) + ".txt";
 
-                    for (int j = 0; j < pcl.size(); j++) {
-                        pcl::PointXYZI &pt = pcl[j];
+				FILE *pFile = fopen(str.data(), "w");
 
-                        fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
-                    }
-                }
+				// output timestamp first
+	//                fprintf(pFile, "%lf,%d\n", timeLaserOdometry, frameCount);
 
-                fclose(pFile);
-            }
+				if (pFile) {
+					for (int i = 0; i < submap.size(); i++) {
+						pcl::PointCloud<pcl::PointXYZI> pcl = submap[i];
 
+						for (int j = 0; j < pcl.size(); j++) {
+							pcl::PointXYZI &pt = pcl[j];
+
+							fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
+						}
+					}
+
+					fclose(pFile);
+				}
+			}
+            
             key_scan_buf.pop();
 
             mSave.unlock();
@@ -769,8 +798,8 @@ void process()
 			downSizeFilterSurf.filter(*laserCloudSurfStack);
 			int laserCloudSurfStackNum = laserCloudSurfStack->points.size();
 
-			printf("map prepare time %f ms\n", t_shift.toc());
-			printf("map corner num %d  surf num %d \n", laserCloudCornerFromMapNum, laserCloudSurfFromMapNum);
+			// printf("map prepare time %f ms\n", t_shift.toc());
+			// printf("map corner num %d  surf num %d \n", laserCloudCornerFromMapNum, laserCloudSurfFromMapNum);
 			if (laserCloudCornerFromMapNum > 10 && laserCloudSurfFromMapNum > 50)
 			{
 				TicToc t_opt;
@@ -927,7 +956,7 @@ void process()
 					//printf("corner num %d used corner num %d \n", laserCloudCornerStackNum, corner_num);
 					//printf("surf num %d used surf num %d \n", laserCloudSurfStackNum, surf_num);
 
-					printf("mapping data assosiation time %f ms \n", t_data.toc());
+					// printf("mapping data assosiation time %f ms \n", t_data.toc());
 
 					TicToc t_solver;
 					ceres::Solver::Options options;
@@ -938,14 +967,14 @@ void process()
 					options.gradient_check_relative_precision = 1e-4;
 					ceres::Solver::Summary summary;
 					ceres::Solve(options, &problem, &summary);
-					printf("mapping solver time %f ms \n", t_solver.toc());
+					// printf("mapping solver time %f ms \n", t_solver.toc());
 
 					//printf("time %f \n", timeLaserOdometry);
 					//printf("corner factor num %d surf factor num %d\n", corner_num, surf_num);
 					//printf("result q %f %f %f %f result t %f %f %f\n", parameters[3], parameters[0], parameters[1], parameters[2],
 					//	   parameters[4], parameters[5], parameters[6]);
 				}
-				printf("mapping optimization time %f \n", t_opt.toc());
+				// printf("mapping optimization time %f \n", t_opt.toc());
 			}
 			else
 			{
@@ -1001,7 +1030,7 @@ void process()
 					laserCloudSurfArray[cubeInd]->push_back(pointSel);
 				}
 			}
-			printf("add points time %f ms\n", t_add.toc());
+			// printf("add points time %f ms\n", t_add.toc());
 
 			
 			TicToc t_filter;
@@ -1019,7 +1048,7 @@ void process()
 				downSizeFilterSurf.filter(*tmpSurf);
 				laserCloudSurfArray[ind] = tmpSurf;
 			}
-			printf("filter time %f ms \n", t_filter.toc());
+			// printf("filter time %f ms \n", t_filter.toc());
 			
 			TicToc t_pub;
 			//publish surround map for every 5 frame
@@ -1067,7 +1096,7 @@ void process()
 			laserCloudFullRes3.header.frame_id = "/camera_init";
 			pubLaserCloudFullRes.publish(laserCloudFullRes3);
 
-			printf("mapping pub time %f ms \n", t_pub.toc());
+			// printf("mapping pub time %f ms \n", t_pub.toc());
 
 			printf("whole mapping time %f ms +++++\n", t_whole.toc());
 
@@ -1083,37 +1112,19 @@ void process()
 			odomAftMapped.pose.pose.position.y = t_w_curr.y();
 			odomAftMapped.pose.pose.position.z = t_w_curr.z();
 			pubOdomAftMapped.publish(odomAftMapped);
+			
+			Eigen::Vector3d diff_p = t_w_curr - t_w_pre;
 
-            if (rmapOut && frameCount > 0 && (frameCount % savefreq == 0))
+            // if (rmapOut && frameCount > 0 && (frameCount % savefreq == 0))
+            if (rmapOut && frameCount > 0 && (diff_p.norm() > keyframe_dis))
             {
                 mSave.lock();
                 key_scan_buf.push(std::make_tuple(frameCount,keyscanID,timeLaserOdometry,*laserCloudFullRes,*laserCloudCornerLast,*laserCloudSurfLast,t_w_curr,q_w_curr,vecGPS));
                 mSave.unlock();
 
-//                outputRMap(frameCount,keyscanID,timeLaserOdometry,*laserCloudFullRes,*laserCloudCornerLast,*laserCloudSurfLast,t_w_curr,q_w_curr,vecGPS);
-//
-//                std::string str = strOut + "/submap-" + std::to_string(keyscanID) + ".txt";
-//
-//                FILE *pFile = fopen(str.data(), "w");
-//
-//                // output timestamp first
-////                fprintf(pFile, "%lf,%d\n", timeLaserOdometry, frameCount);
-//
-//                if (pFile) {
-//                    for (int i = 0; i < submap.size(); i++) {
-//                        pcl::PointCloud<pcl::PointXYZI> pcl = submap[i];
-//
-//                        for (int j = 0; j < pcl.size(); j++) {
-//                            pcl::PointXYZI &pt = pcl[j];
-//
-//                            fprintf(pFile, "%f,%f,%f,%f\n", pt.x, pt.y, pt.z, pt.intensity);
-//                        }
-//                    }
-//
-//                    fclose(pFile);
-//                }
-
                 keyscanID++;
+
+				t_w_pre = t_w_curr;
             } else
             {
                 pcl::PointCloud<pcl::PointXYZI> pcd;
@@ -1276,6 +1287,7 @@ int main(int argc, char **argv)
     printf("gpsout %d \n", nGPS);
 
     nh.param<int>("submap_binsize",nSubmapBinSize,20);
+    nh.param<double>("keyframe_dis",keyframe_dis,1);
 
 	if(rmapOut)
     {

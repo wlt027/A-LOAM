@@ -6,6 +6,7 @@ set(CMAKE_CXX_FLAGS "-std=c++11")
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -Wall -g")
 
 set(Pangolin_DIR "${PROJECT_SOURCE_DIR}/3rdParty/lib/cmake/Pangolin")
+set(Ceres_DIR "${PROJECT_SOURCE_DIR}/3rdParty/lib/cmake/Ceres")
 
 find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
@@ -42,6 +43,9 @@ catkin_package(
 add_executable(ascanRegistration src/scanRegistration.cpp)
 target_link_libraries(ascanRegistration ${catkin_LIBRARIES} ${PCL_LIBRARIES})
 
+add_executable(ascanRegistration_bpearl src/scanRegistration_bpearl.cpp)
+target_link_libraries(ascanRegistration_bpearl ${catkin_LIBRARIES} ${PCL_LIBRARIES})
+
 add_executable(alaserOdometry src/laserOdometry.cpp)
 target_link_libraries(alaserOdometry ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${CERES_LIBRARIES})
 
@@ -58,4 +62,33 @@ add_executable(visualizer
 		src/Visualization_node.cpp
 		src/RosVisualization.cpp)
 target_link_libraries(visualizer ${catkin_LIBRARIES} ${PCL_LIBRARIES} ${Pangolin_LIBRARIES} ${OpenCV_LIBS})
+
+
+#############
+## Install ##
+#############
+
+# all install targets should use catkin DESTINATION variables
+# See http://ros.org/doc/api/catkin/html/adv_user_guide/variables.html
+
+## 添加可执行文件或者库文件，Mark executables and/or libraries for installation
+install(TARGETS ascanRegistration alaserOdometry alaserMapping visualizer
+  ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+install(FILES
+        ${PROJECT_SOURCE_DIR}/3rdParty/lib/libceres.so
+        ${PROJECT_SOURCE_DIR}/3rdParty/lib/libceres.so.1
+        ${PROJECT_SOURCE_DIR}/3rdParty/lib/libceres.so.1.14.0
+        ${PROJECT_SOURCE_DIR}/3rdParty/lib/libpangolin.so
+  DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+)
+
+## 添加资源文件．Mark other files for installation (e.g. launch and bag files, etc.)
+install(FILES
+launch/aloam_zhkj_robosense_bpearl5.launch
+DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/launch
+)
 
